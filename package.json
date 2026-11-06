@@ -1,0 +1,20 @@
+{
+  "name": "freetree",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Decentralized Linktree for Freenet & Delta publishing pages",
+  "main": "index.html",
+  "scripts": {
+    "start": "npx serve . -p 8085",
+    "publish:freenet": "powershell -ExecutionPolicy Bypass -File scripts/publish.ps1"
+  },
+  "keywords": [
+    "freenet",
+    "delta",
+    "linktree",
+    "p2p",
+    "decentralized"
+  ],
+  "author": "Francesco Bruno (@scobru)",
+  "license": "MIT"
+}
