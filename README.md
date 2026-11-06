@@ -9,9 +9,6 @@
 
 In **Delta** (l'app di publishing decentralizzato su Freenet), gli utenti creano pagine con elenchi di freesite, dApp, profili e risorse esterne usando Markdown:
 
-- Screenshot 1: Il sito **Scobru On Freenet** (`7jEk1CQj7R`) con la pagina `Links` (sezioni _Delta_, _Freenet_, _Audio Tech_).
-- Screenshot 2: Il sito **Ivvor's Delta** (`AnCVD9ZD3U`) con la pagina `Freesite Links` (sezioni _Social_, _Games_, _Tools_).
-
 **Freetree** legge il Markdown di queste pagine Delta e le trasforma istantaneamente in un hub **stile Linktree**:
 
 - **Pill capsule interattive** con hover lift e click reattivo
