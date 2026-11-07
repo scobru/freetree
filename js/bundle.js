@@ -1052,7 +1052,7 @@
     }
 
     renderEmptyState() {
-      if (this.el.handle) this.el.handle.textContent = 'freetree';
+      if (this.el.handle) this.el.handle.textContent = 'Freetree';
       if (this.el.bio) {
         this.el.bio.textContent = 'Decentralized Linktree for Freenet. Paste any Delta site link or prefix to generate your profile page with all your links instantly.';
       }

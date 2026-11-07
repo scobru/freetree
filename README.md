@@ -1,4 +1,4 @@
-# freetree 🌲
+# Freetree 🌲
 
 > **Decentralized Linktree for Freenet & Delta**  
 > Trasforma le pagine link di [Delta](https://github.com/freenet/delta) in profili linktree veloci, eleganti, responsive e condivisibili su rete Freenet.
