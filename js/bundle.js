@@ -431,7 +431,7 @@
       if (section.heading) {
         html += `
           <div class="section-divider">
-            // ${escapeHtml(section.heading.toLowerCase())}
+            ${escapeHtml(section.heading)}
           </div>
         `;
       }
@@ -710,7 +710,7 @@
 
     updateThemeUi() {
       if (this.el.themeBtnText) {
-        this.el.themeBtnText.textContent = this.theme === 'dark' ? '[ light ]' : '[ dark ]';
+        this.el.themeBtnText.textContent = this.theme === 'dark' ? 'Light' : 'Dark';
       }
     }
 

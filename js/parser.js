@@ -258,7 +258,7 @@ export function renderLinktreeHtml(parsedData) {
     if (section.heading) {
       html += `
         <div class="section-divider">
-          // ${escapeHtml(section.heading.toLowerCase())}
+          ${escapeHtml(section.heading)}
         </div>
       `;
     }

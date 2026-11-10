@@ -99,7 +99,7 @@ class FreetreeApp {
 
   updateThemeUi() {
     if (this.el.themeBtnText) {
-      this.el.themeBtnText.textContent = this.theme === 'dark' ? '[ chiaro ]' : '[ scuro ]';
+      this.el.themeBtnText.textContent = this.theme === 'dark' ? 'Light' : 'Dark';
     }
   }
 
