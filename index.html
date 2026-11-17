@@ -53,6 +53,9 @@
               Export
             </button>
 
+            <!-- Edit my tree (or create one) -->
+            <button class="topbar-btn" id="edit-tree-btn" type="button" title="Create or edit your tree">Edit</button>
+
             <!-- Sign in with Viso / My tree -->
             <button class="topbar-btn" id="viso-btn" type="button" title="Sign in with Viso">Viso</button>
 
@@ -241,9 +244,25 @@
           <div class="modal-actions" style="justify-content: stretch;">
             <button type="button" class="btn-primary" id="viso-signin-btn" style="width: 100%;">Sign in with Viso</button>
           </div>
+          <div class="form-group" style="margin-top: 14px;">
+            <span class="form-label">No Viso? You can start without an account:</span>
+            <div style="display: flex; gap: 6px;">
+              <button type="button" class="btn-secondary" id="guest-create-btn" style="flex: 1;">Create a tree</button>
+              <button type="button" class="btn-secondary" id="guest-import-btn" style="flex: 1;">Import</button>
+            </div>
+          </div>
+        </div>
+        <div id="viso-import" style="display: none;">
+          <div class="form-group">
+            <label class="form-label" for="import-input">Paste a Freetree link or your links in Markdown:</label>
+            <textarea id="import-input" class="form-textarea" placeholder="https://…#data=…&#10;or&#10;## Section&#10;* [Link Name](https://...) - Description"></textarea>
+          </div>
+          <div class="modal-actions" style="justify-content: flex-end;">
+            <button type="button" class="btn-primary" id="import-go-btn">Import &amp; edit</button>
+          </div>
         </div>
         <div id="viso-tree" style="display: none;">
-          <div class="form-group"><span class="form-label">Signed in as <code id="viso-who"></code></span></div>
+          <div class="form-group" id="viso-who-row"><span class="form-label">Signed in as <code id="viso-who"></code></span></div>
           <div class="form-group">
             <label class="form-label" for="tree-name-input">Name:</label>
             <input type="text" id="tree-name-input" class="form-input" maxlength="64" placeholder="My Linktree" />

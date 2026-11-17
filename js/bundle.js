@@ -754,16 +754,30 @@
               ${ICONS.link}
             </div>
             <div class="empty-state-title">No tree yet</div>
-            <div class="empty-state-subtitle">Sign in with Viso to create your decentralized Linktree: write your links in Markdown.</div>
+            <div class="empty-state-subtitle">Create your decentralized Linktree: write your links in Markdown, or import one. Sign in with Viso if you want it tied to your identity.</div>
 
             <div class="empty-state-form">
-              <button type="button" id="empty-signin-btn" class="btn-primary" style="width: 100%; text-align: center; padding: 10px; font-size: 0.82rem;">
+              <button type="button" id="empty-create-btn" class="btn-primary" style="width: 100%; text-align: center; padding: 10px; font-size: 0.82rem;">
+                Create a tree
+              </button>
+              <button type="button" id="empty-import-btn" class="btn-secondary" style="width: 100%; text-align: center; padding: 10px; font-size: 0.82rem;">
+                Import
+              </button>
+              <button type="button" id="empty-signin-btn" class="btn-secondary" style="width: 100%; text-align: center; padding: 10px; font-size: 0.82rem;">
                 Sign in with Viso
               </button>
             </div>
           </div>
         `;
 
+        document.getElementById('empty-create-btn')?.addEventListener('click', (e) => {
+          e.preventDefault();
+          window.freetreeTree?.create();
+        });
+        document.getElementById('empty-import-btn')?.addEventListener('click', (e) => {
+          e.preventDefault();
+          window.freetreeTree?.showImport();
+        });
         document.getElementById('empty-signin-btn')?.addEventListener('click', (e) => {
           e.preventDefault();
           document.getElementById('viso-btn')?.click();

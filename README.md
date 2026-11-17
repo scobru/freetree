@@ -15,6 +15,7 @@ Accedi con la tua persona **Viso**, scrivi i tuoi link in Markdown e Freetree li
 - **Sezioni categorizzate** (`// freenet`, `// audio tech & strumenti`)
 - **Doppio tema Chiaro / Scuro** con Space Mono typography
 - **Condivisione via link**: `Export` genera un link `#data=…` portabile con tutto l'albero
+- **Create / Import, senza account**: dallo stato iniziale (o dal bottone `Edit`) crei un albero scrivendo i link in Markdown, oppure importi un link Freetree (`#data=…`) o del Markdown: finisci nell'editor con una copia da rivedere. Chi ha il link può modificarlo (albero "local"); `Export` dà il link da conservare
 - **Sign in with Viso + My tree**: accedi con la tua persona [Viso](https://github.com/scobru/viso) (firma Ed25519 verificata in WebCrypto) e crea il tuo linktree scrivendo i link in Markdown (nessun import da altri servizi). CRUD completo: crea/modifica (testo o "Add a link"), leggi, elimina un link o l'intero albero. Salvato in `localStorage` per chiave pubblica (se il sandbox lo consente); `Export` produce sempre un link portabile. Se apri il link di un albero creato con la tua persona (`#data=…`) e fai *Sign in with Viso*, la pagina resta e diventa modificabile (bottone `Viso · …`); dopo il salvataggio l'URL si aggiorna con le modifiche
 - **100% CSP-Compliant**: zero dipendenze CDN esterne, pronto per il sandbox gateway di Freenet
 
