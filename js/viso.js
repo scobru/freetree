@@ -1,5 +1,5 @@
 /**
- * Freetree — Sign in with Viso + "My tree" (CRUD on a Delta-style markdown tree).
+ * Freetree — Sign in with Viso + "My tree" (CRUD).
  * Classic script, no deps. Loaded after bundle.js; drives window.freetree.
  *
  * Connect flow: bounce to the user's Viso with ?connect=v1&challenge&return,
