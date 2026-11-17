@@ -31,5 +31,5 @@ would silently put the data in another contract. Re-run the Rust side if `js/was
 `e2e/store.e2e.mjs` drives the real page in Chromium against a fake node (contract and delegate in `localStorage`)
 and a simulated Viso (real signatures and sealing): the key=v1 sign-in request, the sealed key coming back in
 `#esk=`, migrating the tree on screen to the contract, loading it on a fresh visit, saving, a node that is down,
-deleting, a forged entry, and a key sealed to someone else. See the header of the file for how to run it.
+deleting, a forged entry, a key sealed to someone else, and the short `#u=` share link read by a visitor (also with the node down, or for a persona with no tree). See the header of the file for how to run it.
 It proves the page logic and the formats, not that a real Freenet node accepts the requests.

@@ -113,8 +113,38 @@
     return { persona: hex(pk), cert: { base, challenge, ts, sig: hex(sig) } };
   }
 
+  // Whose contract tree is on screen, unchanged: then the share link is only that persona's key (#u=<key>) and whoever
+  // opens it reads the tree from the contract (checking the signatures). Null: the tree is only in the page link.
+  let sharedUser = null;
+  const shareHash = () => {
+    const d = window.freetree?.siteData;
+    return sharedUser && d && d.prefix === `viso:${short(sharedUser)}` ? `u=${sharedUser}` : null;
+  };
+
+  function failLoad(msg) {
+    window.freetree?.loadEmptyState();
+    toast(msg);
+  }
+
+  // #u=<persona key>: show that persona's tree from the contract. Reading needs no sign-in.
+  async function openUser(personaHex) {
+    const n = net();
+    if (!n) return failLoad('This tree is stored on Freenet: open Freetree from your node to see it');
+    try {
+      const entries = await n.getEntries(personaHex);
+      const t = entries ? n.pickTree(entries, personaHex, appPath()) : null;
+      if (!t || isEmpty(t)) return failLoad('No tree found on Freenet for this link');
+      sharedUser = personaHex;
+      show(t, personaHex);
+    } catch (e) {
+      console.warn('[freetree] could not read from Freenet:', e);
+      failLoad('Could not reach Freenet to load this tree');
+    }
+  }
+
   // ---- the tree in a Freenet contract (needs the bundle, a node, and the app key from a key=v1 sign-in) ----
   let session = null; // { appSecret, cert }: set only when Viso handed the app key over
+  const urlUser = /^#u=[0-9a-f]{64}$/i.test(window.location.hash) ? window.location.hash.slice(3).toLowerCase() : null; // the URL names the tree to show
 
   async function finishSignin(params) {
     const proof = await verifyCallback(params);
@@ -199,7 +229,8 @@
     const remote = await pullTree();
     const shown = shownOwnTree();
     if (remote) memTree = remote; // the editor opens on it
-    if (remote && !window.freetree?.siteData) {
+    if (remote && !window.freetree?.siteData && !urlUser) {
+      sharedUser = pk;
       show(remote);
       syncHash(false);
       toast('Your tree, loaded from Freenet');
@@ -209,10 +240,13 @@
       toast('Your saved tree differs from this link: showing the link. Save to replace the saved one');
       return setStatus('saved');
     }
-    if (remote) return setStatus('saved');
+    if (remote) {
+      if (shown && sameTree(remote, shown)) { sharedUser = pk; syncHash(false); } // the same tree: the short link
+      return setStatus('saved');
+    }
     if (shown && !isEmpty(shown)) {
       const ok = await pushTree(shown);
-      if (ok) toast('Saved on Freenet');
+      if (ok) { sharedUser = pk; syncHash(false); toast('Saved on Freenet'); }
       return setStatus(ok ? 'saved' : 'link');
     }
     setStatus('none');
@@ -316,13 +350,13 @@
     renderList();
   }
 
-  function show(t) {
+  function show(t, who = pk) {
     const app = window.freetree;
     if (!app) return;
     app.loadCustomData({
-      prefix: ownerPrefix(),
+      prefix: who ? `viso:${short(who)}` : 'local',
       name: t.name || 'My Linktree',
-      handle: `@${(t.name || (pk ? short(pk) : 'me')).replace(/\s+/g, '_').toLowerCase()}`,
+      handle: `@${(t.name || (who ? short(who) : 'me')).replace(/\s+/g, '_').toLowerCase()}`,
       bio: t.bio,
       avatar: null,
       pages: { Links: t.md },
@@ -339,11 +373,13 @@
     memTree = t;
     const persisted = store.set(treeKey(pk || 'local'), JSON.stringify(t));
     close();
+    sharedUser = null; // until the contract has it, the link carries the tree
     show(t);
     syncHash(false);
     if (!session) return toast(persisted ? 'Saved' : 'Saved in this page link: use Export to keep it');
     setStatus('saving');
     pushTree(t).then((ok) => {
+      if (ok) { sharedUser = pk; syncHash(false); }
       setStatus(ok ? 'saved' : 'link');
       toast(ok ? 'Saved on Freenet' : 'Saved in this page link only: the Freenet node did not answer');
     });
@@ -353,6 +389,7 @@
     if (!window.confirm('Delete your tree?')) return;
     store.del(treeKey(pk || 'local'));
     memTree = null;
+    sharedUser = null;
     window.freetree?.loadEmptyState();
     syncHash(true);
     refreshModal();
@@ -419,6 +456,7 @@
   // What to append to the return URL: the plain hash if it fits, else a deflated one (#z=), else nothing.
   async function carryHash() {
     const h = window.location.hash;
+    if (/^#u=[0-9a-f]{64}$/i.test(h)) return h; // already short
     if (!/^#data=[A-Za-z0-9%._~-]+$/.test(h)) return '';
     const room = MAX_HREF - ownBase().length - CALLBACK_EXTRA;
     if (h.length <= room) return h;
@@ -472,7 +510,8 @@
   async function boot() {
     await restoreCarried();
     $('viso-url-input').value = store.get('freetree_viso_url') || DEFAULT_VISO_URL;
-    window.freetreeTree = { create, showImport };
+    window.freetreeTree = { create, showImport, openUser, shareHash };
+    const opening = urlUser ? openUser(urlUser) : null; // reading needs no sign-in: start it first
     $('viso-btn').addEventListener('click', () => { guest = false; refreshModal(); open(); });
     $('edit-tree-btn').addEventListener('click', editShown);
     $('guest-create-btn').addEventListener('click', create);
@@ -512,6 +551,7 @@
     }
     refreshModal();
     if (session) await syncFromContract();
+    await opening;
     refreshModal();
     if (status === 'ok' && pk) {
       if (shownOwnTree()) {
