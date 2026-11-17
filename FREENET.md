@@ -1,6 +1,6 @@
 # FREENET.md — Freetree Technical Specification
 
-This document details how **Freetree** integrates with the Freenet platform, the Delta publishing contract, and the local node gateway.
+This document details how **Freetree** integrates with the Freenet platform and the local node gateway.
 
 ---
 
@@ -56,33 +56,8 @@ Inside the Freenet gateway iframe:
 
 ---
 
-## 4. Integration with Delta Publishing
+## 4. Sign in with Viso
 
-[Delta](https://github.com/freenet/delta) sites are individual contract instances on Freenet.
+Freetree has no accounts. The user signs in with a [Viso](https://github.com/scobru/viso) persona: Freetree bounces to the user's Viso (`?connect=v1&challenge=…&return=…`) and verifies the returned Ed25519 proof in WebCrypto (`js/viso.js`). The message signed is `"whoiam-connect-v1" | pk | u32le|origin+path| u32le|challenge | u64le time_ms`, so a proof only works for this app, once, within 10 minutes.
 
-### Delta Site Identification:
-- **Site Prefix**: First 10 base58 characters of the site owner's Ed25519 public key.
-- **Contract Parameters**: CBOR-encoded `SiteParameters { prefix: String }`.
-- **Contract Key**: `BLAKE3(BLAKE3(site_contract.wasm) || params)`.
-- **State Structure**:
-  - `owner`: 32-byte verifying key.
-  - `config`: `SignedConfig` (site title and description).
-  - `pages`: `BTreeMap<PageId, Page>` where each `Page` contains:
-    - `title: String`
-    - `content: String` (Markdown text)
-    - `updated_at: u64`
-    - `order: u32`
-
-### Delta Markdown Format Parsed by Freetree:
-Freetree reads markdown formatted with headings and list items:
-```markdown
-# Site or Page Title
-
-## Category Name
-* [Link Title](URL) - Description
-* [Internal Delta Link](http://127.0.0.1:7509/v1/contract/web/EqJ5YpEEV3XLqEvKWLQHFhGAac2qXzSUoE6k2zbdnXBr/#PREFIX)
-* [[page_id|Delta Wiki Link]]
-```
-
-Freetree turns this into an interactive Linktree card with responsive pills, category dividers, and automatic icon classification.
-
+The personal tree (Markdown, one `* [Title](https://url) - description` per line) is stored in `localStorage` keyed by the proven public key. The sandboxed gateway iframe may block storage; `Export` always produces a portable `#data=` link.

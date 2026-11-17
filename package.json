@@ -2,7 +2,7 @@
   "name": "freetree",
   "version": "1.0.0",
   "type": "module",
-  "description": "Decentralized Linktree for Freenet & Delta publishing pages",
+  "description": "Decentralized Linktree for Freenet with Viso sign-in",
   "main": "index.html",
   "scripts": {
     "start": "npx serve . -p 8085",
@@ -10,7 +10,6 @@
   },
   "keywords": [
     "freenet",
-    "delta",
     "linktree",
     "p2p",
     "decentralized"

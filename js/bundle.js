@@ -16,11 +16,6 @@
               stroke="currentColor" stroke-width="2.3" stroke-linecap="round"/>
       </svg>
     `,
-    delta: `
-      <svg viewBox="0 0 24 24" aria-hidden="true">
-        <path d="M12 3L2 21h20L12 3zm0 4.5L18.5 19h-13L12 7.5z" fill="currentColor"/>
-      </svg>
-    `,
     freenet: `
       <svg viewBox="0 0 24 24" aria-hidden="true">
         <circle cx="12" cy="5" r="3" fill="currentColor"/>
@@ -122,7 +117,6 @@
   function classifyIcon(title, url, description) {
     const text = `${title || ''} ${url || ''} ${description || ''}`.toLowerCase();
 
-    if (text.includes('delta')) return 'delta';
     if (text.includes('tunecamp') || text.includes('freetunes') || text.includes('delia') || 
         text.includes('sound') || text.includes('sintesi') || text.includes('audio') || 
         text.includes('music') || text.includes('groovebox') || text.includes('synth')) {
@@ -150,14 +144,14 @@
     return 'link';
   }
 
-  function normalizeUrl(rawUrl, deltaSitePrefix) {
+  function normalizeUrl(rawUrl, sitePrefix) {
     let url = (rawUrl || '').trim();
     if (url.startsWith('#')) return url;
     if (url.startsWith('[[') && url.endsWith(']]')) {
       const inner = url.slice(2, -2);
       const parts = inner.split('|');
       const pageId = parts[0];
-      return deltaSitePrefix ? `#${deltaSitePrefix}/${pageId}` : `#${pageId}`;
+      return sitePrefix ? `#${sitePrefix}/${pageId}` : `#${pageId}`;
     }
     if (url.startsWith('freenet:')) {
       const key = url.replace('freenet:', '');
@@ -166,7 +160,7 @@
     return url;
   }
 
-  function parseDeltaMarkdown(markdownText, deltaSitePrefix) {
+  function parseTreeMarkdown(markdownText, sitePrefix) {
     if (!markdownText) return { title: '', sections: [] };
 
     const lines = markdownText.split(/\r?\n/);
@@ -213,7 +207,7 @@
             const title = match[1].trim();
             const rawUrl = match[2].trim();
             const description = (match[3] || '').trim();
-            const url = normalizeUrl(rawUrl, deltaSitePrefix);
+            const url = normalizeUrl(rawUrl, sitePrefix);
             const iconKey = classifyIcon(title, url, description);
             currentSection.items.push({ title, url, description, iconKey });
             continue;
@@ -224,7 +218,7 @@
             const pageId = wikiMatch[1].trim();
             const title = (wikiMatch[2] || pageId).trim();
             const description = (wikiMatch[3] || '').trim();
-            const url = deltaSitePrefix ? `#${deltaSitePrefix}/${pageId}` : `#${pageId}`;
+            const url = sitePrefix ? `#${sitePrefix}/${pageId}` : `#${pageId}`;
             const iconKey = classifyIcon(title, url, description);
             currentSection.items.push({ title, url, description, iconKey });
             continue;
@@ -235,7 +229,7 @@
             const rawUrl = bareUrlMatch[1].trim();
             const description = (bareUrlMatch[2] || '').trim();
             const title = description || rawUrl;
-            const url = normalizeUrl(rawUrl, deltaSitePrefix);
+            const url = normalizeUrl(rawUrl, sitePrefix);
             const iconKey = classifyIcon(title, url, description);
             currentSection.items.push({ title, url, description, iconKey });
             continue;
@@ -295,7 +289,7 @@
           if (prefixText) description = prefixText;
         }
 
-        const url = normalizeUrl(rawUrl, deltaSitePrefix);
+        const url = normalizeUrl(rawUrl, sitePrefix);
         const iconKey = classifyIcon(title, url, description);
         currentSection.items.push({
           title,
@@ -346,7 +340,7 @@
 
       if (urlsOnLine.length > 0) {
         for (const rawUrl of urlsOnLine) {
-          const url = normalizeUrl(rawUrl, deltaSitePrefix);
+          const url = normalizeUrl(rawUrl, sitePrefix);
 
           if (pendingItem && !pendingItem.url) {
             pendingItem.url = url;
@@ -364,7 +358,7 @@
               iconKey = 'blog';
             } else if (url.includes('/projects') || url.includes('#7jKW1CQj7R/3')) {
               label = 'Projects on Freenet';
-              desc = 'All decentralized projects on Delta';
+              desc = 'All decentralized projects';
               iconKey = 'code';
             } else if (url.includes('Ex88TLL48HQPA6CuYQuhc2zKFjcEdUeHbreNBrfVL2Sw') || trimmed.toLowerCase().includes('radica')) {
               label = 'Radica';
@@ -420,7 +414,7 @@
       return `
         <div class="empty-state">
           ${ICONS.link}
-          <p>No links found on this Delta page.</p>
+          <p>No links yet.</p>
         </div>
       `;
     }
@@ -470,104 +464,12 @@
   /**
    * Returns true if a markdown page contains at least one actionable link or crypto address.
    */
-  function pageHasLinks(markdownText, deltaSitePrefix) {
+  function pageHasLinks(markdownText, sitePrefix) {
     if (!markdownText || !markdownText.trim()) return false;
-    const parsed = parseDeltaMarkdown(markdownText, deltaSitePrefix);
+    const parsed = parseTreeMarkdown(markdownText, sitePrefix);
     if (!parsed || !parsed.sections) return false;
     return parsed.sections.some(s => s.items && s.items.length > 0);
   }
-
-  /**
-   * Filters a pages map ({ [title]: markdown }) to keep only pages with links.
-   * If no page has links, falls back to original pages.
-   */
-  function filterPagesWithLinks(pages, deltaSitePrefix) {
-    if (!pages) return {};
-    const filtered = {};
-    for (const [title, content] of Object.entries(pages)) {
-      if (pageHasLinks(content, deltaSitePrefix)) {
-        filtered[title] = content;
-      }
-    }
-    return Object.keys(filtered).length > 0 ? filtered : pages;
-  }
-
-  function matchPage(availablePages, target) {
-    if (!target) return null;
-    const cleanTarget = target.toLowerCase().trim();
-    const targetSlug = cleanTarget.replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
-
-    // 1. Direct match or exact slug match
-    for (const page of availablePages) {
-      if (page.toLowerCase() === cleanTarget) return page;
-      const pageSlug = page.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
-      if (pageSlug === targetSlug || pageSlug === cleanTarget) return page;
-    }
-
-    // 2. Numeric page ID (1-based: "1" -> 1st page, "2" -> 2nd page)
-    if (/^\d+$/.test(cleanTarget)) {
-      const idx = parseInt(cleanTarget, 10) - 1;
-      if (idx >= 0 && idx < availablePages.length) {
-        return availablePages[idx];
-      }
-    }
-
-    // 3. Substring / keyword match (e.g. "projects" matches "Projects on freenet")
-    for (const page of availablePages) {
-      const pageLower = page.toLowerCase();
-      if (pageLower.includes(cleanTarget) || cleanTarget.includes(pageLower)) {
-        return page;
-      }
-    }
-
-    return null;
-  }
-
-  /**
-   * Intelligently extracts Delta prefix (10 base58 chars) and optional page name from any input:
-   * e.g. "http://127.0.0.1:7509/v1/contract/web/EqJ5.../#7jEk1CQj7R" -> "7jEk1CQj7R"
-   * e.g. "http://.../#AnCVD9ZD3U/1/freesite-links" -> prefix "AnCVD9ZD3U", page "freesite-links"
-   * e.g. "#7jEk1CQj7R" -> "7jEk1CQj7R"
-   * e.g. "7jEk1CQj7R" -> "7jEk1CQj7R"
-   */
-  function extractDeltaPrefixAndPage(input) {
-    if (!input) return { prefix: '', page: null };
-    const str = input.trim();
-
-    // Pattern 1: URL with hash e.g. #7jEk1CQj7R or #AnCVD9ZD3U/1/freesite-links
-    const hashMatch = str.match(/#\/?([1-9A-HJ-NP-Za-km-z]{10})(?:\/(.+))?/);
-    if (hashMatch) {
-      let pageCandidate = null;
-      if (hashMatch[2]) {
-        const subParts = hashMatch[2].split('/').map(p => decodeURIComponent(p.trim())).filter(Boolean);
-        // If there are multiple parts like ["1", "links"], the last part is the slug/title
-        pageCandidate = subParts[subParts.length - 1] || subParts[0] || null;
-      }
-      return {
-        prefix: hashMatch[1],
-        page: pageCandidate
-      };
-    }
-
-    // Pattern 2: Bare 10-char base58 prefix
-    const bareMatch = str.match(/^[1-9A-HJ-NP-Za-km-z]{10}$/);
-    if (bareMatch) {
-      return { prefix: bareMatch[0], page: null };
-    }
-
-    // Pattern 3: Look for any 10-char base58 sequence
-    const anyMatch = str.match(/([1-9A-HJ-NP-Za-km-z]{10})/);
-    if (anyMatch) {
-      return { prefix: anyMatch[1], page: null };
-    }
-
-    return { prefix: str, page: null };
-  }
-
-  // =========================================================================
-  // 3. DELTA CONTRACT REGISTRY & CACHE (DYNAMIC ONLY - NO HARDCODED PRESETS)
-  // =========================================================================
-  const PRESETS = {};
 
   // Helper functions to serialize / deserialize custom created Linktree into shareable URL hash
   function encodeCustomData(siteData, activePage) {
@@ -598,7 +500,7 @@
       const parsed = JSON.parse(json);
       return {
         prefix: parsed.p || 'custom',
-        name: parsed.n || 'Delta Site',
+        name: parsed.n || 'Linktree',
         handle: parsed.h || '@custom',
         bio: parsed.b || '',
         avatar: null,
@@ -644,7 +546,6 @@
   // =========================================================================
   class FreetreeApp {
     constructor() {
-      this.currentPresetKey = null;
       this.siteData = null;
       this.activePageTitle = null;
       this.isCustomData = false;
@@ -665,34 +566,22 @@
         exportBtn: document.getElementById('export-link-btn'),
         cardExportBtn: document.getElementById('card-export-btn'),
         brandLogoBtn: document.getElementById('brand-logo-btn'),
-        editBtn: document.getElementById('edit-site-btn'),
-        openLoadBtn: document.querySelector('[data-action="open-load"]'),
         nodeStatus: document.getElementById('node-status-badge'),
         statusDot: document.getElementById('node-status-dot'),
         statusText: document.getElementById('node-status-text'),
         
-        presetBtns: document.querySelectorAll('[data-preset]'),
         
         avatarImg: document.getElementById('profile-avatar-img'),
         avatarFallback: document.getElementById('profile-avatar-fallback'),
         handle: document.getElementById('profile-handle'),
         bio: document.getElementById('profile-bio'),
-        deltaBadge: document.getElementById('delta-prefix-badge'),
+        ownerBadge: document.getElementById('owner-badge'),
         pageTabs: document.getElementById('page-tabs'),
         linksList: document.getElementById('links-list'),
         
         toast: document.getElementById('toast'),
         toastText: document.getElementById('toast-text'),
         
-        modal: document.getElementById('editor-modal-backdrop'),
-        closeModalBtn: document.getElementById('modal-close-btn'),
-        modalUrlInput: document.getElementById('modal-url-input'),
-        modalLoadBtn: document.getElementById('modal-load-btn'),
-        modalTitleInput: document.getElementById('modal-title-input'),
-        modalBioInput: document.getElementById('modal-bio-input'),
-        modalMarkdownInput: document.getElementById('modal-markdown-input'),
-        modalApplyBtn: document.getElementById('modal-apply-btn'),
-
         exportModal: document.getElementById('export-modal-backdrop'),
         closeExportModalBtn: document.getElementById('export-modal-close-btn'),
         exportUrlInput: document.getElementById('export-url-input'),
@@ -796,59 +685,6 @@
         this.loadEmptyState();
       });
 
-      // Preset buttons in topbar (if present)
-      this.el.presetBtns?.forEach(btn => {
-        btn.addEventListener('click', (e) => {
-          e.preventDefault();
-          const presetKey = btn.getAttribute('data-preset');
-          this.loadPreset(presetKey);
-          try {
-            window.location.hash = presetKey;
-          } catch {}
-        });
-      });
-
-      // "+ load" pill in topbar
-      this.el.openLoadBtn?.addEventListener('click', (e) => {
-        e.preventDefault();
-        this.openEditorModal();
-      });
-
-      // Open Modal button in topbar ("[ load link ]")
-      this.el.editBtn?.addEventListener('click', (e) => {
-        e.preventDefault();
-        this.openEditorModal();
-      });
-
-      // Modal close button
-      this.el.closeModalBtn?.addEventListener('click', () => this.closeEditorModal());
-
-      // Primary Load Button: loads directly from Delta Link / Prefix!
-      this.el.modalLoadBtn?.addEventListener('click', (e) => {
-        e.preventDefault();
-        const inputVal = this.el.modalUrlInput?.value || '';
-        this.loadFromDeltaInput(inputVal);
-      });
-
-      // Enter key in URL input triggers load directly
-      this.el.modalUrlInput?.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter') {
-          e.preventDefault();
-          this.el.modalLoadBtn?.click();
-        }
-      });
-
-      // Optional manual markdown apply button inside <details>
-      this.el.modalApplyBtn?.addEventListener('click', (e) => {
-        e.preventDefault();
-        this.applyCustomData();
-      });
-
-      // Close modal on backdrop click
-      this.el.modal?.addEventListener('click', (e) => {
-        if (e.target === this.el.modal) this.closeEditorModal();
-      });
-
       // Hashchange navigation
       window.addEventListener('hashchange', () => this.handleRoute());
 
@@ -863,120 +699,6 @@
           this.copyToClipboard(urlToCopy, isAddr ? 'Address copied to clipboard!' : 'Link copied to clipboard!');
         }
       });
-
-      // Delta badge click opens the link loader
-      this.el.deltaBadge?.addEventListener('click', (e) => {
-        e.preventDefault();
-        this.openEditorModal();
-      });
-
-      // Hook up Freenet node status listener from bridge
-      if (window.freenetDelta) {
-        window.freenetDelta.onStatus((status) => {
-          if (this.el.statusText) {
-            if (status === 'connected') {
-              this.el.statusText.textContent = 'Freenet: Active';
-              this.el.statusDot?.classList.remove('is-offline');
-            } else if (status === 'connecting') {
-              this.el.statusText.textContent = 'Freenet: Connecting...';
-            } else {
-              this.el.statusText.textContent = 'Freenet: Offline';
-              this.el.statusDot?.classList.add('is-offline');
-            }
-          }
-        });
-      }
-    }
-
-    renderLoading(prefix) {
-      if (this.el.handle) this.el.handle.textContent = `@${prefix}`;
-      if (this.el.bio) this.el.bio.textContent = 'Loading Delta site from Freenet...';
-      if (this.el.linksList) {
-        this.el.linksList.innerHTML = `
-          <div class="empty-state" style="padding: 30px 10px;">
-            <div style="font-size: 1.5rem; margin-bottom: 12px; animation: pulse 1.5s infinite;">⏳</div>
-            <p>Querying Freenet node for <strong>${escapeHtml(prefix)}</strong>...</p>
-            <span style="font-size: 0.72rem; color: var(--text-muted); margin-top: 6px;">Retrieving Delta contract and pages via P2P WebSocket</span>
-          </div>
-        `;
-      }
-      if (this.el.pageTabs) this.el.pageTabs.style.display = 'none';
-      if (this.el.deltaBadge) {
-        this.el.deltaBadge.innerHTML = `
-          ${ICONS.delta}
-          <span>delta: ${escapeHtml(prefix)}</span>
-        `;
-      }
-    }
-
-    /**
-     * Load Delta site directly from Link or Prefix (Zero Markdown typing needed!)
-     */
-    async loadFromDeltaInput(rawInput) {
-      if (!rawInput || !rawInput.trim()) {
-        this.showToast('Paste a Delta link or prefix!');
-        return;
-      }
-
-      const { prefix, page } = extractDeltaPrefixAndPage(rawInput);
-      if (!prefix) {
-        this.showToast('Invalid Delta link!');
-        return;
-      }
-
-      // 1. Check if known in PRESETS/registry
-      for (const [key, site] of Object.entries(PRESETS)) {
-        const matches = site.prefix.toLowerCase() === prefix.toLowerCase() ||
-          key.toLowerCase() === prefix.toLowerCase() ||
-          (site.aliases && site.aliases.some(a => a.toLowerCase() === prefix.toLowerCase()));
-        if (matches) {
-          this.loadPreset(key, page);
-          try {
-            window.location.hash = page ? `${site.prefix}/${page}` : site.prefix;
-          } catch {}
-          this.closeEditorModal();
-          this.showToast(`Loaded ${site.name}!`);
-          return;
-        }
-      }
-
-      // 2. Dynamically fetch ANY Delta site from the node via freenetDelta (same technique as Radica!)
-      if (window.freenetDelta && /^[1-9A-HJ-NP-Za-km-z]{10}$/.test(prefix)) {
-        this.closeEditorModal();
-        this.renderLoading(prefix);
-        this.showToast(`Searching Delta site (${prefix}) on Freenet...`);
-        try {
-          const site = await window.freenetDelta.fetchDeltaSite(prefix);
-          if (site && site.pages && Object.keys(site.pages).length > 0) {
-            this.currentPresetKey = prefix;
-            this.isCustomData = false;
-            this.siteData = {
-              ...site,
-              pages: site.pages
-            };
-            const availablePages = Object.keys(site.pages);
-            const matched = matchPage(availablePages, page);
-            this.activePageTitle = matched || availablePages[0] || 'Links';
-            this.updateActivePresetButton(null);
-            this.render();
-            try {
-              window.location.hash = page ? `${prefix}/${page}` : prefix;
-            } catch {}
-            this.showToast(`Loaded ${site.name} from Freenet!`);
-            return;
-          }
-        } catch (e) {
-          console.warn('Dynamic Delta fetch failed:', e);
-        }
-      }
-
-      // 3. If not found or offline, fallback to custom placeholder
-      this.loadCustomPrefix(prefix, page);
-      try {
-        window.location.hash = page ? `${prefix}/${page}` : prefix;
-      } catch {}
-      this.closeEditorModal();
-      this.showToast(`Delta site (${prefix}) loaded!`);
     }
 
     handleRoute() {
@@ -985,12 +707,7 @@
         rawHash = window.location.hash.replace(/^#\/?/, '').trim();
       } catch {}
 
-      if (!rawHash) {
-        this.loadEmptyState();
-        return;
-      }
-
-      // Check portable custom data
+      // Portable tree shared via Export: #data=...
       if (rawHash.startsWith('data=')) {
         const customData = decodeCustomData(rawHash);
         if (customData) {
@@ -998,71 +715,27 @@
           return;
         }
       }
-
-      const { prefix, page } = extractDeltaPrefixAndPage(rawHash);
-
-      // 1. Check presets
-      for (const [key, preset] of Object.entries(PRESETS)) {
-        const matches = key.toLowerCase() === prefix.toLowerCase() ||
-          preset.prefix.toLowerCase() === prefix.toLowerCase() ||
-          (preset.aliases && preset.aliases.some(a => a.toLowerCase() === prefix.toLowerCase()));
-        if (matches) {
-          this.loadPreset(key, page);
-          return;
-        }
-      }
-
-      // 2. Dynamically fetch via window.freenetDelta
-      if (window.freenetDelta && /^[1-9A-HJ-NP-Za-km-z]{10}$/.test(prefix)) {
-        this.renderLoading(prefix);
-        window.freenetDelta.fetchDeltaSite(prefix).then(site => {
-          if (site && site.pages && Object.keys(site.pages).length > 0) {
-            this.currentPresetKey = prefix;
-            this.isCustomData = false;
-            this.siteData = {
-              ...site,
-              pages: site.pages
-            };
-            const availablePages = Object.keys(site.pages);
-            const matched = matchPage(availablePages, page);
-            this.activePageTitle = matched || availablePages[0] || 'Links';
-            this.updateActivePresetButton(null);
-            this.render();
-          } else {
-            this.loadCustomPrefix(prefix, page);
-          }
-        }).catch(() => {
-          this.loadCustomPrefix(prefix, page);
-        });
-        return;
-      }
-
-      this.loadCustomPrefix(prefix, page);
+      this.loadEmptyState();
     }
 
     /**
      * Start clean without any pages loaded
      */
     loadEmptyState() {
-      this.currentPresetKey = null;
       this.siteData = null;
       this.activePageTitle = null;
       this.isCustomData = false;
-      this.updateActivePresetButton(null);
       this.renderEmptyState();
     }
 
     renderEmptyState() {
       if (this.el.handle) this.el.handle.textContent = 'Freetree';
       if (this.el.bio) {
-        this.el.bio.textContent = 'Decentralized Linktree for Freenet. Paste any Delta site link or prefix to generate your profile page with all your links instantly.';
+        this.el.bio.textContent = 'Decentralized Linktree for Freenet. Sign in with Viso and write your links in Markdown.';
       }
 
-      if (this.el.deltaBadge) {
-        this.el.deltaBadge.innerHTML = `
-          ${ICONS.delta}
-          <span>freenet // linktree</span>
-        `;
+      if (this.el.ownerBadge) {
+        this.el.ownerBadge.innerHTML = `<span>freenet // linktree</span>`;
       }
 
       if (this.el.avatarImg) this.el.avatarImg.style.display = 'none';
@@ -1080,85 +753,25 @@
             <div class="empty-state-icon">
               ${ICONS.link}
             </div>
-            <div class="empty-state-title">No site loaded</div>
-            <div class="empty-state-subtitle">Paste any Delta site link or prefix to generate your decentralized Linktree profile page.</div>
+            <div class="empty-state-title">No tree yet</div>
+            <div class="empty-state-subtitle">Sign in with Viso to create your decentralized Linktree: write your links in Markdown.</div>
 
             <div class="empty-state-form">
-              <input type="text" id="empty-url-input" class="form-input" placeholder="e.g. http://.../#7jKW1CQj7R or AnCVD9ZD3U" autofocus />
-              <button type="button" id="empty-load-btn" class="btn-primary" style="width: 100%; text-align: center; padding: 10px; font-size: 0.82rem;">
-                ⚡ Generate Linktree from Delta
+              <button type="button" id="empty-signin-btn" class="btn-primary" style="width: 100%; text-align: center; padding: 10px; font-size: 0.82rem;">
+                Sign in with Viso
               </button>
             </div>
           </div>
         `;
 
-        const emptyInput = document.getElementById('empty-url-input');
-        const emptyBtn = document.getElementById('empty-load-btn');
-        emptyBtn?.addEventListener('click', (e) => {
+        document.getElementById('empty-signin-btn')?.addEventListener('click', (e) => {
           e.preventDefault();
-          this.loadFromDeltaInput(emptyInput?.value || '');
-        });
-        emptyInput?.addEventListener('keydown', (e) => {
-          if (e.key === 'Enter') {
-            e.preventDefault();
-            emptyBtn?.click();
-          }
+          document.getElementById('viso-btn')?.click();
         });
       }
-    }
-
-    loadPreset(presetKey, targetPage) {
-      const preset = PRESETS[presetKey];
-      if (!preset) return;
-
-      this.currentPresetKey = presetKey;
-      this.isCustomData = false;
-      const filteredPages = filterPagesWithLinks(preset.pages || {}, preset.prefix);
-      this.siteData = {
-        prefix: preset.prefix,
-        name: preset.name,
-        handle: preset.handle,
-        bio: preset.bio,
-        avatar: preset.avatar,
-        pages: filteredPages
-      };
-
-      const availablePages = Object.keys(filteredPages);
-      const matched = matchPage(availablePages, targetPage);
-      if (matched) {
-        this.activePageTitle = matched;
-      } else if (preset.activePage && availablePages.includes(preset.activePage)) {
-        this.activePageTitle = preset.activePage;
-      } else {
-        this.activePageTitle = availablePages[0] || 'Links';
-      }
-
-      this.updateActivePresetButton(presetKey);
-      this.render();
-    }
-
-    loadCustomPrefix(prefix, targetPage) {
-      this.currentPresetKey = 'custom';
-      this.isCustomData = false;
-      const pageTitle = targetPage ? (targetPage.charAt(0).toUpperCase() + targetPage.slice(1)) : 'Links';
-      const deltaSubpath = targetPage ? `/${targetPage}` : '';
-      this.siteData = {
-        prefix: prefix,
-        name: `Delta Site (${prefix})`,
-        handle: `@${prefix}`,
-        bio: `Decentralized Delta site (${prefix}).`,
-        avatar: null,
-        pages: {
-          [pageTitle]: `# ${pageTitle}\n\n## Links\n* [Open on Delta](http://127.0.0.1:7509/v1/contract/web/EqJ5YpEEV3XLqEvKWLQHFhGAac2qXzSUoE6k2zbdnXBr/#${prefix}${deltaSubpath}) - View full page on Delta\n* [Freenet Gateway](http://127.0.0.1:7509/) - Local node status & diagnostics\n* [River Chat](http://127.0.0.1:7509/v1/contract/web/raAqMhMG7KUpXBU2SxgCQ3Vh4PYjttxdSWd9ftV7RLv/) - P2P communication channel`
-        }
-      };
-      this.activePageTitle = pageTitle;
-      this.updateActivePresetButton('custom');
-      this.render();
     }
 
     loadCustomData(custom) {
-      this.currentPresetKey = 'custom';
       this.isCustomData = true;
       this.siteData = {
         prefix: custom.prefix,
@@ -1169,15 +782,14 @@
         pages: custom.pages
       };
       this.activePageTitle = custom.activePage || Object.keys(custom.pages)[0] || 'Links';
-      this.updateActivePresetButton('custom');
       this.render();
       this.showToast(`Loaded ${custom.name}!`);
     }
 
     openExportModal() {
       if (!this.siteData) {
-        this.showToast('Load a Delta site first to export!');
-        this.openEditorModal();
+        this.showToast('Create your tree first!');
+        document.getElementById('viso-btn')?.click();
         return;
       }
 
@@ -1212,27 +824,7 @@
         pathname = '/v1/contract/web/4SC5QCzLzKWH9BSFFybivTynfBRkPw3PtXwegjXbPm8x/';
       }
 
-      if (this.currentPresetKey === 'custom' && this.isCustomData) {
-        return `${origin}${pathname}#${encodeCustomData(this.siteData, this.activePageTitle)}`;
-      }
-
-      const prefix = this.siteData.prefix || this.currentPresetKey || '';
-      const page = this.activePageTitle;
-      if (page && page !== 'Links' && page !== 'Home') {
-        return `${origin}${pathname}#${prefix}/${encodeURIComponent(page)}`;
-      }
-      return `${origin}${pathname}#${prefix}`;
-    }
-
-    updateActivePresetButton(activeKey) {
-      this.el.presetBtns?.forEach(btn => {
-        const key = btn.getAttribute('data-preset');
-        if (key && key === activeKey) {
-          btn.classList.add('is-active');
-        } else {
-          btn.classList.remove('is-active');
-        }
-      });
+      return `${origin}${pathname}#${encodeCustomData(this.siteData, this.activePageTitle)}`;
     }
 
     render() {
@@ -1245,12 +837,9 @@
       if (this.el.handle) this.el.handle.textContent = this.siteData.handle || this.siteData.name;
       if (this.el.bio) this.el.bio.textContent = this.siteData.bio;
 
-      // Delta Prefix Badge
-      if (this.el.deltaBadge) {
-        this.el.deltaBadge.innerHTML = `
-          ${ICONS.delta}
-          <span>delta: ${this.siteData.prefix || 'custom'}</span>
-        `;
+      // Owner badge
+      if (this.el.ownerBadge) {
+        this.el.ownerBadge.innerHTML = `<span>${escapeHtml(this.siteData.prefix || 'custom')}</span>`;
       }
 
       // Avatar
@@ -1336,55 +925,8 @@
       if (!this.el.linksList || !this.siteData) return;
 
       const rawMarkdown = this.siteData.pages[this.activePageTitle] || '';
-      const parsed = parseDeltaMarkdown(rawMarkdown, this.siteData.prefix);
+      const parsed = parseTreeMarkdown(rawMarkdown, this.siteData.prefix);
       this.el.linksList.innerHTML = renderLinktreeHtml(parsed);
-    }
-
-    openEditorModal() {
-      if (!this.el.modal) return;
-
-      if (this.el.modalUrlInput) {
-        this.el.modalUrlInput.value = this.siteData?.prefix 
-          ? `http://127.0.0.1:7509/v1/contract/web/EqJ5YpEEV3XLqEvKWLQHFhGAac2qXzSUoE6k2zbdnXBr/#${this.siteData.prefix}`
-          : '';
-      }
-      if (this.el.modalTitleInput) this.el.modalTitleInput.value = this.siteData?.name || '';
-      if (this.el.modalBioInput) this.el.modalBioInput.value = this.siteData?.bio || '';
-      if (this.el.modalMarkdownInput) this.el.modalMarkdownInput.value = this.siteData?.pages[this.activePageTitle] || '';
-
-      this.el.modal.classList.add('is-open');
-      setTimeout(() => {
-        this.el.modalUrlInput?.focus();
-        this.el.modalUrlInput?.select();
-      }, 100);
-    }
-
-    closeEditorModal() {
-      this.el.modal?.classList.remove('is-open');
-    }
-
-    applyCustomData() {
-      const title = this.el.modalTitleInput.value.trim() || 'Custom Delta Site';
-      const bio = this.el.modalBioInput.value.trim() || '';
-      const markdown = this.el.modalMarkdownInput.value.trim();
-
-      this.currentPresetKey = 'custom';
-      this.siteData = {
-        prefix: this.siteData?.prefix || 'custom',
-        name: title,
-        handle: `@${title.replace(/\s+/g, '_').toLowerCase()}`,
-        bio: bio,
-        avatar: null,
-        pages: {
-          'Links': markdown
-        }
-      };
-      this.activePageTitle = 'Links';
-
-      this.updateActivePresetButton('custom');
-      this.render();
-      this.closeEditorModal();
-      this.showToast('Configuration updated!');
     }
 
     copyToClipboard(text, message) {
