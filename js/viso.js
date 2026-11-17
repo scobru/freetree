@@ -197,13 +197,49 @@
     toast('Tree deleted');
   }
 
-  // Viso keeps the return URL's fragment, so the tree being viewed survives the sign-in bounce.
-  function keepHash() {
+  // Viso keeps the return URL's fragment, so the tree being viewed can survive the sign-in bounce.
+  // Limit: the Freenet shell silently drops a navigation whose URL is over 4096 chars (shell_bridge.js),
+  // and Viso appends ?viso=ok&pk&sig&challenge&ts (~270 chars) to it. Too long = stuck on Viso.
+  const MAX_HREF = 4096;
+  const CALLBACK_EXTRA = 330;
+  const MAX_CARRIED_JSON = 65536;
+
+  const toB64 = (u8) => { let b = ''; u8.forEach((x) => { b += String.fromCharCode(x); }); return btoa(b); };
+  const fromB64 = (b) => Uint8Array.from(atob(b), (c) => c.charCodeAt(0));
+  const hashJson = (h) => new TextDecoder().decode(fromB64(decodeURIComponent(h.slice(6)))); // '#data=' + url-encoded base64 of UTF-8 JSON
+  const jsonHash = (json) => `#data=${encodeURIComponent(toB64(enc.encode(json)))}`;
+  const pipe = async (stream, u8) => new Uint8Array(await new Response(new Blob([u8]).stream().pipeThrough(stream)).arrayBuffer());
+
+  // What to append to the return URL: the plain hash if it fits, else a deflated one (#z=), else nothing.
+  async function carryHash() {
     const h = window.location.hash;
-    return /^#data=[A-Za-z0-9%._~-]+$/.test(h) ? h : '';
+    if (!/^#data=[A-Za-z0-9%._~-]+$/.test(h)) return '';
+    const room = MAX_HREF - ownBase().length - CALLBACK_EXTRA;
+    if (h.length <= room) return h;
+    try {
+      const z = '#z=' + toB64(await pipe(new CompressionStream('deflate-raw'), enc.encode(hashJson(h))))
+        .replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+      if (z.length <= room) return z;
+    } catch {}
+    toast('This tree is too big to keep through sign-in: reopen your link after signing in');
+    return '';
   }
 
-  function startSignin() {
+  // Back from Viso with #z=…: inflate it into the normal #data= hash and show it.
+  async function restoreCarried() {
+    const m = /^#z=([A-Za-z0-9_-]+)$/.exec(window.location.hash);
+    if (!m) return;
+    try {
+      const b64 = m[1].replace(/-/g, '+').replace(/_/g, '/');
+      const json = new TextDecoder().decode(await pipe(new DecompressionStream('deflate-raw'), fromB64(b64 + '='.repeat((4 - b64.length % 4) % 4))));
+      if (json.length > MAX_CARRIED_JSON) return;
+      JSON.parse(json);
+      history.replaceState(null, '', jsonHash(json));
+      window.freetree.handleRoute();
+    } catch {}
+  }
+
+  async function startSignin() {
     const viso = $('viso-url-input').value.trim();
     let u;
     try { u = new URL(viso); } catch { return toast('Enter your Viso URL'); }
@@ -212,12 +248,13 @@
     const challenge = hex(nonce);
     store.set('freetree_challenge', challenge);
     store.set('freetree_viso_url', viso);
-    const url = `${viso}${viso.includes('?') ? '&' : '?'}connect=v1&challenge=${challenge}&return=${encodeURIComponent(ownBase() + keepHash())}`;
+    const url = `${viso}${viso.includes('?') ? '&' : '?'}connect=v1&challenge=${challenge}&return=${encodeURIComponent(ownBase() + await carryHash())}`;
     // Sandboxed iframe can't top-navigate; a new tab can.
     if (!window.open(url, '_blank')) toast('Popup blocked: allow popups and retry');
   }
 
   async function boot() {
+    await restoreCarried();
     $('viso-url-input').value = store.get('freetree_viso_url') || DEFAULT_VISO_URL;
     $('viso-btn').addEventListener('click', () => { refreshModal(); open(); });
     $('viso-close-btn').addEventListener('click', close);
