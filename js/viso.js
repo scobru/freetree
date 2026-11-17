@@ -85,6 +85,24 @@
   let memTree = null; // fallback when storage is blocked
   const short = (h) => h.slice(0, 8) + '…';
 
+  // The tree on screen, if it belongs to the signed-in persona (its prefix is viso:<short pk>).
+  // This is what makes an opened #data= link editable by its owner.
+  function shownOwnTree() {
+    const d = window.freetree?.siteData;
+    if (!pk || !d || d.prefix !== `viso:${short(pk)}`) return null;
+    const pages = d.pages || {};
+    const md = pages[window.freetree.activePageTitle] ?? pages[Object.keys(pages)[0]] ?? '';
+    return { name: d.name === 'My Linktree' ? '' : d.name || '', bio: d.bio || '', md };
+  }
+
+  // The URL hash is the only storage that survives the sandbox: keep it equal to the shown tree.
+  function syncHash(clear) {
+    try {
+      const h = clear ? '' : (window.freetree.getShareableUrl().split('#')[1] || '');
+      history.replaceState(null, '', h ? `#${h}` : window.location.pathname + window.location.search);
+    } catch {}
+  }
+
   function toast(msg) { window.freetree?.showToast(msg); }
   function open() { $('viso-modal-backdrop').classList.add('is-open'); }
   function close() { $('viso-modal-backdrop').classList.remove('is-open'); }
@@ -96,7 +114,7 @@
     $('viso-btn').textContent = pk ? `Viso · ${short(pk)}` : 'Viso';
     if (!pk) return;
     $('viso-who').textContent = short(pk);
-    const t = loadTree(pk) || memTree || { name: '', bio: '', md: '' };
+    const t = shownOwnTree() || loadTree(pk) || memTree || { name: '', bio: '', md: '' };
     $('tree-name-input').value = t.name;
     $('tree-bio-input').value = t.bio;
     $('tree-md-input').value = t.md;
@@ -165,16 +183,24 @@
     const persisted = store.set(treeKey(pk), JSON.stringify(t));
     close();
     show(t);
-    if (!persisted) toast('Not saved on this device (sandbox): use Export to keep it');
+    syncHash(false);
+    toast(persisted ? 'Saved' : 'Saved in this page link: use Export to keep it');
   }
 
   function remove() {
     if (!window.confirm('Delete your tree?')) return;
     store.del(treeKey(pk));
     memTree = null;
-    refreshModal();
     window.freetree?.loadEmptyState();
+    syncHash(true);
+    refreshModal();
     toast('Tree deleted');
+  }
+
+  // Viso keeps the return URL's fragment, so the tree being viewed survives the sign-in bounce.
+  function keepHash() {
+    const h = window.location.hash;
+    return /^#data=[A-Za-z0-9%._~-]+$/.test(h) ? h : '';
   }
 
   function startSignin() {
@@ -186,7 +212,7 @@
     const challenge = hex(nonce);
     store.set('freetree_challenge', challenge);
     store.set('freetree_viso_url', viso);
-    const url = `${viso}${viso.includes('?') ? '&' : '?'}connect=v1&challenge=${challenge}&return=${encodeURIComponent(ownBase())}`;
+    const url = `${viso}${viso.includes('?') ? '&' : '?'}connect=v1&challenge=${challenge}&return=${encodeURIComponent(ownBase() + keepHash())}`;
     // Sandboxed iframe can't top-navigate; a new tab can.
     if (!window.open(url, '_blank')) toast('Popup blocked: allow popups and retry');
   }
@@ -224,8 +250,12 @@
     }
     refreshModal();
     if (status === 'ok' && pk) {
-      const t = loadTree(pk);
-      if (t) show(t); else { open(); }
+      if (shownOwnTree()) {
+        toast('Signed in. Tap your Viso button to edit this tree');
+      } else {
+        const t = loadTree(pk);
+        if (t) show(t); else { open(); }
+      }
     }
   }
 
