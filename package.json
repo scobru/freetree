@@ -7,7 +7,8 @@
   "scripts": {
     "start": "npx serve . -p 8085",
     "publish:freenet": "powershell -ExecutionPolicy Bypass -File scripts/publish.ps1",
-    "test": "node --test test/*.test.mjs"
+    "test": "node --test test/*.test.mjs",
+    "build": "node scripts/build.mjs"
   },
   "keywords": [
     "freenet",
@@ -18,7 +19,9 @@
   "author": "Francesco Bruno (@scobru)",
   "license": "MIT",
   "devDependencies": {
+    "@freenetorg/freenet-stdlib": "^0.4.0",
     "@noble/curves": "^2.4.0",
-    "@noble/hashes": "^2.4.0"
+    "@noble/hashes": "^2.4.0",
+    "esbuild": "^0.28.2"
   }
 }

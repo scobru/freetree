@@ -16,3 +16,12 @@ FIXTURE=/path/to/freetree/test/fixtures/tree-entry.json cargo test --manifest-pa
 It checks that the contract accepts the entry signed in JS, and rejects a tampered body, a tampered certificate and
 the same entry presented to another app's log. After an intended format change, regenerate the fixture with
 `UPDATE_FIXTURE=1 npm test` and run the Rust check again.
+
+## Contract address
+
+`rust/keyaddr.rs` prints the address freenet-stdlib derives for a persona and app path (same `WASM`, `PK`, `APP`
+env vars); `address.test.mjs` pins the id the JS derives for the same inputs. They must be equal: a wrong address
+would silently put the data in another contract. Re-run the Rust side if `js/wasm/log.wasm` or the params change.
+
+`js/wasm/` holds Radica's `log.wasm` (the contract) and `identity.wasm` (the node's key/value delegate), unchanged;
+`npm run build` refuses to bundle if they do not match `js/wasm/SHA256SUMS`.
