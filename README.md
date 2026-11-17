@@ -1,24 +1,21 @@
 # Freetree 🌲
 
-> **Decentralized Linktree for Freenet & Delta**  
-> Trasforma le pagine link di [Delta](https://github.com/freenet/delta) in profili linktree veloci, eleganti, responsive e condivisibili su rete Freenet.
+> **Decentralized Linktree for Freenet**  
+> Accedi con [Viso](https://github.com/scobru/viso), scrivi i tuoi link in Markdown e ottieni un profilo linktree veloce, elegante e condivisibile su rete Freenet.
 
 ---
 
 ## 🌟 Cos'è Freetree?
 
-In **Delta** (l'app di publishing decentralizzato su Freenet), gli utenti creano pagine con elenchi di freesite, dApp, profili e risorse esterne usando Markdown:
-
-**Freetree** legge il Markdown di queste pagine Delta e le trasforma istantaneamente in un hub **stile Linktree**:
+Accedi con la tua persona **Viso**, scrivi i tuoi link in Markdown e Freetree li trasforma in un hub **stile Linktree**:
 
 - **Pill capsule interattive** con hover lift e click reattivo
 - **Icone intelligenti automatiche** (audio, P2P/Freenet, chat, giochi, codice, identità, blog, market)
 - **Tasto opzioni `⋮`** per copiare direttamente il link negli appunti con feedback toast
-- **Sezioni categorizzate** (`// delta`, `// freenet`, `// audio tech & strumenti`)
+- **Sezioni categorizzate** (`// freenet`, `// audio tech & strumenti`)
 - **Doppio tema Chiaro / Scuro** con Space Mono typography
-- **Routing URL via Hash**: ogni sito Delta ha il suo link diretto (es. `#7jEk1CQj7R` o `#AnCVD9ZD3U`)
-- **Editor / Importatore Live**: incolla o modifica Markdown live in tempo reale
-- **Sign in with Viso + My tree**: accedi con la tua persona [Viso](https://github.com/scobru/viso) (firma Ed25519 verificata in WebCrypto) e crea il tuo linktree scrivendo i link in Markdown come su Delta, senza importare nessun sito Delta. CRUD completo: crea/modifica (testo o "Add a link"), leggi, elimina un link o l'intero albero. Salvato in `localStorage` per chiave pubblica (se il sandbox lo consente); `Export` produce sempre un link portabile
+- **Condivisione via link**: `Export` genera un link `#data=…` portabile con tutto l'albero
+- **Sign in with Viso + My tree**: accedi con la tua persona [Viso](https://github.com/scobru/viso) (firma Ed25519 verificata in WebCrypto) e crea il tuo linktree scrivendo i link in Markdown (nessun import da altri servizi). CRUD completo: crea/modifica (testo o "Add a link"), leggi, elimina un link o l'intero albero. Salvato in `localStorage` per chiave pubblica (se il sandbox lo consente); `Export` produce sempre un link portabile
 - **100% CSP-Compliant**: zero dipendenze CDN esterne, pronto per il sandbox gateway di Freenet
 
 ---
@@ -37,11 +34,7 @@ python -m http.server 8085
 npx serve . -p 8085
 ```
 
-Apri nel browser:
-
-- `http://localhost:8085/#scobru` — Carica il profilo di Scobru (`7jEk1CQj7R`)
-- `http://localhost:8085/#ivvor` — Carica il profilo di Ivvor (`AnCVD9ZD3U`)
-- `http://localhost:8085/#7jEk1CQj7R` — Risoluzione diretta per Delta Site Prefix
+Apri `http://localhost:8085/`, poi **Viso** → *Sign in with Viso*.
 
 ---
 
@@ -83,16 +76,13 @@ d:\freetree/
 ├── css/
 │   └── styles.css        # Stili completi (variabili CSS, temi, pills, layout)
 ├── js/
-│   ├── app.js            # Controller principale, routing, toast, tema
-│   ├── parser.js         # Parser Markdown Delta -> sezioni e pillole linktree
-│   ├── icons.js          # Libreria icone SVG inline (zero asset esterni)
-│   ├── presets.js        # Preset autentici (Scobru, Ivvor)
-│   └── freenet.js        # Client WebSocket Freenet e decoder CBOR
+│   ├── bundle.js         # App: parser Markdown, UI, routing, tema, export
+│   └── viso.js           # Sign in with Viso + My tree (CRUD)
 ├── scripts/
 │   ├── publish.ps1       # Script PowerShell per fdev website
 │   └── publish.sh        # Script Bash per fdev website
 ├── package.json          # Script npm
-├── FREENET.md            # Specifiche tecniche per Freenet & Delta
+├── FREENET.md            # Specifiche tecniche per Freenet
 └── README.md             # Questa documentazione
 ```
 
@@ -100,7 +90,7 @@ d:\freetree/
 
 ## 🎨 Formato Markdown supportato
 
-Freetree riconosce la formattazione standard delle pagine Delta:
+Formato Markdown:
 
 ```markdown
 # Titolo Pagina (opzionale)
@@ -114,14 +104,13 @@ Freetree riconosce la formattazione standard delle pagine Delta:
 ## Altra Categoria
 
 - [Strumento Audio](https://...) — Descrizione con trattino lungo
-- [[page_id|Titolo Pagina Interna Delta]]
 ```
 
 Il parser estrae automaticamente:
 
 1. Intestazioni (`#`, `##`, `###`) $\rightarrow$ Divisori di sezione `// nome`
 2. Elementi di lista (`*`, `-`) $\rightarrow$ Pill Linktree con titolo, descrizione e URL
-3. Riconoscimento intelligente delle icone in base a parole chiave (es. _audio_, _delta_, _chat_, _p2p_, _code_, _game_, _photo_, _market_)
+3. Riconoscimento intelligente delle icone in base a parole chiave (es. _audio_, _chat_, _p2p_, _code_, _game_, _photo_, _market_)
 
 ---
 

@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta
       name="description"
-      content="Freetree — Decentralized Linktree on Freenet. Turn Delta link pages into fast, minimal, shareable profiles."
+      content="Freetree — Decentralized Linktree on Freenet. Sign in with Viso and write your links in Markdown."
     />
     <title>Freetree — decentralized links on Freenet</title>
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><circle cx='12' cy='12' r='10' fill='%23111821'/><path d='M12 4v16M4 12h16M6.34 6.34l11.32 11.32M17.66 6.34L6.34 17.66' stroke='%23dff0fa' stroke-width='2' stroke-linecap='round'/></svg>" />
@@ -42,17 +42,6 @@
           </div>
 
           <div class="topbar-right">
-            <!-- Load link button -->
-            <button
-              class="topbar-btn"
-              id="edit-site-btn"
-              type="button"
-              aria-label="Load from Delta link"
-              title="Load from Delta link"
-            >
-              Load Link
-            </button>
-
             <!-- Export via link button -->
             <button
               class="topbar-btn"
@@ -120,13 +109,13 @@
           <h1 class="profile-handle" id="profile-handle">Freetree</h1>
 
           <div class="profile-meta-row">
-            <a href="#" class="delta-badge" id="delta-prefix-badge" title="View contract on Delta">
+            <a href="#" class="owner-badge" id="owner-badge" title="Freetree">
               <span>freenet // linktree</span>
             </a>
           </div>
 
           <p class="profile-bio" id="profile-bio">
-            Decentralized Linktree for Freenet. Paste any Delta site link or prefix to generate your profile page with all your links instantly.
+            Decentralized Linktree for Freenet. Sign in with Viso and write your links in Markdown.
           </p>
 
           <!-- Social Icons Row directly under bio (matching Linktree reference) -->
@@ -146,12 +135,6 @@
                 <path d="M12 8v5M7 15.5l3.5-2M17 15.5l-3.5-2" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
               </svg>
             </a>
-            <!-- Delta Publishing -->
-            <a class="social-icon-btn" href="http://127.0.0.1:7509/v1/contract/web/EqJ5YpEEV3XLqEvKWLQHFhGAac2qXzSUoE6k2zbdnXBr/" target="_blank" rel="noopener noreferrer" title="Delta on Freenet" aria-label="Delta">
-              <svg viewBox="0 0 24 24" aria-hidden="true">
-                <path d="M12 3L2 21h20L12 3zm0 4.5L18.5 19h-13L12 7.5z" fill="currentColor"/>
-              </svg>
-            </a>
             <!-- Web / Scobru profile -->
             <a class="social-icon-btn" href="https://scobru.dev/link" target="_blank" rel="noopener noreferrer" title="Francesco Bruno (@scobru)" aria-label="Scobru Website">
               <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -161,8 +144,8 @@
           </div>
         </header>
 
-        <!-- Page selector tabs (when Delta site has multiple pages) -->
-        <nav class="page-tabs-container" id="page-tabs" aria-label="Delta site pages">
+        <!-- Page selector tabs -->
+        <nav class="page-tabs-container" id="page-tabs" aria-label="Pages">
           <!-- Injected dynamically -->
         </nav>
 
@@ -192,16 +175,6 @@
               🔗 Export Link
             </button>
             <a
-              href="http://127.0.0.1:7509/v1/contract/web/EqJ5YpEEV3XLqEvKWLQHFhGAac2qXzSUoE6k2zbdnXBr/"
-              target="_blank"
-              rel="noopener noreferrer"
-              class="footer-site-link"
-              title="Open Delta on Freenet"
-            >
-              Delta
-            </a>
-            <span style="opacity: 0.3;">&bull;</span>
-            <a
               href="http://127.0.0.1:7509/"
               target="_blank"
               rel="noopener noreferrer"
@@ -212,65 +185,10 @@
             </a>
           </div>
           <div style="font-size: 0.72rem; color: var(--text-muted); display: flex; flex-direction: column; align-items: center; gap: 4px;">
-            <span>Decentralized Linktree for Freenet &amp; Delta</span>
+            <span>Decentralized Linktree for Freenet</span>
             <span>Created with ❤️ by <a href="https://scobru.dev/link" target="_blank" rel="noopener" style="color: inherit; text-decoration: underline; font-weight: 600;">scobru</a></span>
           </div>
         </footer>
-      </div>
-    </div>
-
-    <!-- Load from Delta Modal Backdrop -->
-    <div class="modal-backdrop" id="editor-modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="modal-title">
-      <div class="editor-modal">
-        <div class="modal-header">
-          <h2 class="modal-title" id="modal-title">Load from Delta Link</h2>
-          <button type="button" class="modal-close-btn" id="modal-close-btn" aria-label="Close dialog">&times;</button>
-        </div>
-
-        <!-- Single Primary Input for Delta Link / Prefix -->
-        <div class="form-group">
-          <label class="form-label" for="modal-url-input">Paste Delta link or prefix (10 characters):</label>
-          <input
-            type="text"
-            id="modal-url-input"
-            class="form-input"
-            placeholder="e.g. http://127.0.0.1:7509/v1/.../#7jKW1CQj7R or AnCVD9ZD3U"
-            autofocus
-          />
-          <span style="font-size: 0.68rem; color: var(--text-muted); line-height: 1.4;">
-            Paste any Delta site URL or prefix: Freetree will automatically extract titles, bio, pages, and link lists without typing Markdown!
-          </span>
-        </div>
-
-        <div class="modal-actions" style="justify-content: stretch;">
-          <button type="button" class="btn-primary" id="modal-load-btn" style="width: 100%; text-align: center; padding: 10px; font-size: 0.82rem;">
-            ⚡ Load Linktree from Delta
-          </button>
-        </div>
-
-        <!-- Advanced options (manual edit / Markdown) -->
-        <details class="advanced-details">
-          <summary>Advanced options (manual edit / Markdown)</summary>
-
-          <div class="form-group" style="margin-top: 10px;">
-            <label class="form-label" for="modal-title-input">Profile / Site Name (optional):</label>
-            <input type="text" id="modal-title-input" class="form-input" placeholder="e.g. My Delta Site" />
-          </div>
-
-          <div class="form-group">
-            <label class="form-label" for="modal-bio-input">Bio / Description (optional):</label>
-            <input type="text" id="modal-bio-input" class="form-input" placeholder="Short description" />
-          </div>
-
-          <div class="form-group">
-            <label class="form-label" for="modal-markdown-input">Custom Markdown:</label>
-            <textarea id="modal-markdown-input" class="form-textarea" placeholder="## Section&#10;* [Link Name](http://...) - Link description"></textarea>
-          </div>
-
-          <div style="display: flex; justify-content: flex-end; margin-top: 8px;">
-            <button type="button" class="btn-secondary" id="modal-apply-btn">Apply Markdown</button>
-          </div>
-        </details>
       </div>
     </div>
 
@@ -294,7 +212,7 @@
         </div>
 
         <div class="form-group" style="margin-top: 14px;">
-          <label class="form-label" for="export-markdown-input">Delta snippet (paste into your Delta page):</label>
+          <label class="form-label" for="export-markdown-input">Markdown snippet:</label>
           <div style="display: flex; gap: 8px;">
             <input type="text" id="export-markdown-input" class="form-input" readonly style="flex: 1; font-family: monospace; font-size: 0.74rem;" />
             <button type="button" class="btn-secondary" id="copy-export-markdown-btn" style="white-space: nowrap;">📋 Copy</button>
@@ -335,7 +253,7 @@
             <input type="text" id="tree-bio-input" class="form-input" maxlength="280" placeholder="Short description" />
           </div>
           <div class="form-group">
-            <label class="form-label" for="tree-md-input">Links (Markdown, like Delta):</label>
+            <label class="form-label" for="tree-md-input">Links (Markdown):</label>
             <textarea id="tree-md-input" class="form-textarea" placeholder="## Section&#10;* [Link Name](https://...) - Description"></textarea>
           </div>
           <div class="form-group">
@@ -366,8 +284,6 @@
       <span id="toast-text">Link copied to clipboard!</span>
     </div>
 
-    <!-- Freenet Delta Bridge (WebSocket + CBOR reader from Radica) -->
-    <script src="js/delta-bridge.bundle.js"></script>
     <!-- Main Script (Classic Bundle — zero CORS requirement in sandbox iframe) -->
     <script src="js/bundle.js"></script>
     <!-- Sign in with Viso + personal tree CRUD -->

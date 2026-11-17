@@ -1,4 +1,4 @@
-/* Freetree — Decentralized Linktree for Freenet & Delta
+/* Freetree — Decentralized Linktree for Freenet
  * Clean modern Linktree aesthetics
  * 100% self-contained — No external CDN dependencies (CSP-compliant)
  */
@@ -346,7 +346,7 @@ body {
   margin-bottom: 8px;
 }
 
-.delta-badge {
+.owner-badge {
   display: inline-flex;
   align-items: center;
   gap: 4px;
@@ -363,7 +363,7 @@ body {
   transition: all 0.15s ease;
 }
 
-.delta-badge:hover {
+.owner-badge:hover {
   transform: translateY(-1px);
   color: var(--text-primary);
   border-color: rgba(0, 0, 0, 0.15);
@@ -414,7 +414,7 @@ body {
   fill: currentColor;
 }
 
-/* Page Selector Tabs (when Delta site has multiple pages) */
+/* Page Selector Tabs */
 .page-tabs-container {
   width: 100%;
   display: flex;
