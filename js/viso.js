@@ -1,5 +1,5 @@
 /**
- * Freetree — Sign in with Viso + "My tree" (CRUD).
+ * Freetree — create / import / edit your tree (classic, no account) + optional Sign in with Viso (CRUD).
  * Classic script, no deps. Loaded after bundle.js; drives window.freetree.
  *
  * Connect flow: bounce to the user's Viso with ?connect=v1&challenge&return,
@@ -76,7 +76,7 @@
   }
 
   // ---- tree CRUD (create/update = save, read = show, delete) ----
-  const treeKey = (pk) => `freetree_tree_${pk}`;
+  const treeKey = (id) => (id === 'local' ? LOCAL_KEY : `freetree_tree_${id}`);
   const loadTree = (pk) => { try { return JSON.parse(store.get(treeKey(pk)) || 'null'); } catch { return null; } };
   const safeUrl = (u) => /^https?:\/\/\S+$/i.test(u);
   const LINK_RE = /^\s*[*-]\s*\[([^\]]+)\]\((\S+?)\)/;
@@ -85,14 +85,23 @@
   let memTree = null; // fallback when storage is blocked
   const short = (h) => h.slice(0, 8) + '…';
 
-  // The tree on screen, if it belongs to the signed-in persona (its prefix is viso:<short pk>).
-  // This is what makes an opened #data= link editable by its owner.
-  function shownOwnTree() {
-    const d = window.freetree?.siteData;
-    if (!pk || !d || d.prefix !== `viso:${short(pk)}`) return null;
+  // Without Viso a tree is "local": whoever holds its link edits it. With Viso it is viso:<short pk>.
+  let guest = false; // editor open without being signed in
+  const ownerPrefix = () => (pk ? `viso:${short(pk)}` : 'local');
+  const LOCAL_KEY = 'freetree_tree_local';
+
+  const treeOf = (d) => {
     const pages = d.pages || {};
     const md = pages[window.freetree.activePageTitle] ?? pages[Object.keys(pages)[0]] ?? '';
     return { name: d.name === 'My Linktree' ? '' : d.name || '', bio: d.bio || '', md };
+  };
+
+  // The tree on screen, if it is mine (a local one, or the signed-in persona's viso:<short pk>).
+  // This is what makes an opened #data= link editable by its owner.
+  function shownOwnTree() {
+    const d = window.freetree?.siteData;
+    if (!d || (d.prefix !== 'local' && d.prefix !== ownerPrefix())) return null;
+    return treeOf(d);
   }
 
   // The URL hash is the only storage that survives the sandbox: keep it equal to the shown tree.
@@ -107,14 +116,19 @@
   function open() { $('viso-modal-backdrop').classList.add('is-open'); }
   function close() { $('viso-modal-backdrop').classList.remove('is-open'); }
 
-  function refreshModal() {
-    $('viso-signin').style.display = pk ? 'none' : '';
-    $('viso-tree').style.display = pk ? '' : 'none';
-    $('viso-modal-title').textContent = pk ? 'My tree' : 'Sign in with Viso';
+  function refreshModal(prefill) {
+    const editor = !!pk || guest;
+    $('viso-signin').style.display = editor ? 'none' : '';
+    $('viso-tree').style.display = editor ? '' : 'none';
+    $('viso-import').style.display = 'none';
+    $('viso-modal-title').textContent = pk ? 'My tree' : guest ? 'Create a tree' : 'Get started';
     $('viso-btn').textContent = pk ? `Viso · ${short(pk)}` : 'Viso';
-    if (!pk) return;
-    $('viso-who').textContent = short(pk);
-    const t = shownOwnTree() || loadTree(pk) || memTree || { name: '', bio: '', md: '' };
+    $('viso-who-row').style.display = pk ? '' : 'none';
+    $('viso-signout-btn').style.display = pk ? '' : 'none';
+    if (!editor) return;
+    if (pk) $('viso-who').textContent = short(pk);
+    const stored = pk ? loadTree(pk) : loadTree('local');
+    const t = prefill || shownOwnTree() || stored || memTree || { name: '', bio: '', md: '' };
     $('tree-name-input').value = t.name;
     $('tree-bio-input').value = t.bio;
     $('tree-md-input').value = t.md;
@@ -163,9 +177,9 @@
     const app = window.freetree;
     if (!app) return;
     app.loadCustomData({
-      prefix: `viso:${short(pk)}`,
+      prefix: ownerPrefix(),
       name: t.name || 'My Linktree',
-      handle: `@${(t.name || short(pk)).replace(/\s+/g, '_').toLowerCase()}`,
+      handle: `@${(t.name || (pk ? short(pk) : 'me')).replace(/\s+/g, '_').toLowerCase()}`,
       bio: t.bio,
       avatar: null,
       pages: { Links: t.md },
@@ -180,7 +194,7 @@
       md: $('tree-md-input').value.trim()
     };
     memTree = t;
-    const persisted = store.set(treeKey(pk), JSON.stringify(t));
+    const persisted = store.set(treeKey(pk || 'local'), JSON.stringify(t));
     close();
     show(t);
     syncHash(false);
@@ -189,12 +203,54 @@
 
   function remove() {
     if (!window.confirm('Delete your tree?')) return;
-    store.del(treeKey(pk));
+    store.del(treeKey(pk || 'local'));
     memTree = null;
     window.freetree?.loadEmptyState();
     syncHash(true);
     refreshModal();
     toast('Tree deleted');
+  }
+
+  // ---- classic entry: create or import, no account ----
+  function openEditor(t) { guest = !pk; refreshModal(t); open(); }
+
+  function create() { openEditor({ name: '', bio: '', md: '' }); }
+
+  function showImport() {
+    $('viso-signin').style.display = 'none';
+    $('viso-tree').style.display = 'none';
+    $('viso-import').style.display = '';
+    $('viso-modal-title').textContent = 'Import a tree';
+    $('import-input').value = '';
+    open();
+  }
+
+  // A Freetree link (#data=…, e.g. from Export) or plain Markdown. Either way you land in the editor with a
+  // copy to review: saving it makes it yours.
+  function importText(text) {
+    const t = text.trim();
+    if (!t) return toast('Paste a Freetree link or Markdown');
+    if (t.length > 200000) return toast('That is too big to import');
+    let tree = { name: '', bio: '', md: t };
+    const m = /(?:#|^)(data=\S*)/.exec(t);
+    if (m) {
+      try {
+        const j = JSON.parse(hashJson('#' + m[1]));
+        const pages = j.pages || {};
+        tree = { name: typeof j.n === 'string' && j.n !== 'My Linktree' ? j.n : '', bio: typeof j.b === 'string' ? j.b : '', md: String(pages[j.a] ?? pages[Object.keys(pages)[0]] ?? '') };
+      } catch {
+        return toast('That is not a valid Freetree link');
+      }
+    }
+    openEditor(tree);
+  }
+
+  // Topbar "Edit": the tree on screen (a copy, if it is someone else's), or a new one.
+  function editShown() {
+    const d = window.freetree?.siteData;
+    if (!d) return create();
+    if (!shownOwnTree()) toast('Not your tree: saving makes your own copy');
+    openEditor(treeOf(d));
   }
 
   // Viso keeps the return URL's fragment, so the tree being viewed can survive the sign-in bounce.
@@ -256,7 +312,12 @@
   async function boot() {
     await restoreCarried();
     $('viso-url-input').value = store.get('freetree_viso_url') || DEFAULT_VISO_URL;
-    $('viso-btn').addEventListener('click', () => { refreshModal(); open(); });
+    window.freetreeTree = { create, showImport };
+    $('viso-btn').addEventListener('click', () => { guest = false; refreshModal(); open(); });
+    $('edit-tree-btn').addEventListener('click', editShown);
+    $('guest-create-btn').addEventListener('click', create);
+    $('guest-import-btn').addEventListener('click', showImport);
+    $('import-go-btn').addEventListener('click', () => importText($('import-input').value));
     $('viso-close-btn').addEventListener('click', close);
     $('viso-modal-backdrop').addEventListener('click', (e) => { if (e.target.id === 'viso-modal-backdrop') close(); });
     $('viso-signin-btn').addEventListener('click', startSignin);
