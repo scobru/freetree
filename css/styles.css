@@ -14,6 +14,7 @@
   --btn-white-bg: #ffffff;
   --btn-white-text: #111827;
   --btn-white-border: rgba(0, 0, 0, 0.08);
+  --btn-primary-text: #ffffff;
   --pill-bg: #ffffff;
   --pill-border: rgba(0, 0, 0, 0.06);
   --pill-text: #111827;
@@ -50,6 +51,7 @@
   --btn-white-bg: rgba(255, 255, 255, 0.12);
   --btn-white-text: #f8fafc;
   --btn-white-border: rgba(255, 255, 255, 0.14);
+  --btn-primary-text: #0b1220;
   --pill-bg: rgba(255, 255, 255, 0.08);
   --pill-border: rgba(255, 255, 255, 0.09);
   --pill-text: #f8fafc;
@@ -835,7 +837,7 @@ body {
 
 .btn-primary {
   background: var(--text-primary);
-  color: var(--card-bg);
+  color: var(--btn-primary-text);
   border: none;
   border-radius: 9999px;
   font-family: inherit;

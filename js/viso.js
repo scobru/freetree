@@ -11,6 +11,8 @@
 (function () {
   'use strict';
 
+  // Pre-filled Viso; a URL the user entered before (stored) wins.
+  const DEFAULT_VISO_URL = 'http://127.0.0.1:7509/v1/contract/web/GzHy3jnEtj26EoGqMsBpoawcY378hK9kp91rTcNYiAac/';
   const PROOF_MAX_AGE_MS = 10 * 60 * 1000;
   const enc = new TextEncoder();
   const $ = (id) => document.getElementById(id);
@@ -190,7 +192,7 @@
   }
 
   async function boot() {
-    $('viso-url-input').value = store.get('freetree_viso_url') || '';
+    $('viso-url-input').value = store.get('freetree_viso_url') || DEFAULT_VISO_URL;
     $('viso-btn').addEventListener('click', () => { refreshModal(); open(); });
     $('viso-close-btn').addEventListener('click', close);
     $('viso-modal-backdrop').addEventListener('click', (e) => { if (e.target.id === 'viso-modal-backdrop') close(); });
