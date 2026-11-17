@@ -442,7 +442,8 @@
         const iconSvg = ICONS[item.iconKey] || ICONS.link;
         const hasDescription = Boolean(item.description);
         const isInternal = item.url.startsWith('#') && !isCopy;
-        const href = isCopy ? '#' : escapeHtml(item.url);
+        const safeScheme = /^(https?:\/\/|#|\/)/i.test(item.url); // block javascript:/data: hrefs
+        const href = (isCopy || !safeScheme) ? '#' : escapeHtml(item.url);
         const targetAttr = (isInternal || isCopy) ? '' : 'target="_blank" rel="noopener noreferrer"';
         const copyAttr = isCopy ? `data-copy="${escapeHtml(copyPayload)}"` : '';
 

@@ -18,6 +18,7 @@ In **Delta** (l'app di publishing decentralizzato su Freenet), gli utenti creano
 - **Doppio tema Chiaro / Scuro** con Space Mono typography
 - **Routing URL via Hash**: ogni sito Delta ha il suo link diretto (es. `#7jEk1CQj7R` o `#AnCVD9ZD3U`)
 - **Editor / Importatore Live**: incolla o modifica Markdown live in tempo reale
+- **Sign in with Viso + My tree**: accedi con la tua persona [Viso](https://github.com/scobru/viso) (firma Ed25519 verificata in WebCrypto) e crea il tuo linktree scrivendo i link in Markdown come su Delta, senza importare nessun sito Delta. CRUD completo: crea/modifica (testo o "Add a link"), leggi, elimina un link o l'intero albero. Salvato in `localStorage` per chiave pubblica (se il sandbox lo consente); `Export` produce sempre un link portabile
 - **100% CSP-Compliant**: zero dipendenze CDN esterne, pronto per il sandbox gateway di Freenet
 
 ---

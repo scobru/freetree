@@ -64,6 +64,9 @@
               Export
             </button>
 
+            <!-- Sign in with Viso / My tree -->
+            <button class="topbar-btn" id="viso-btn" type="button" title="Sign in with Viso">Viso</button>
+
             <!-- Theme toggle -->
             <button
               class="topbar-btn"
@@ -305,6 +308,56 @@
       </div>
     </div>
 
+    <!-- Viso sign-in + My tree (CRUD) -->
+    <div class="modal-backdrop" id="viso-modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="viso-modal-title">
+      <div class="editor-modal">
+        <div class="modal-header">
+          <h2 class="modal-title" id="viso-modal-title">Sign in with Viso</h2>
+          <button type="button" class="modal-close-btn" id="viso-close-btn" aria-label="Close dialog">&times;</button>
+        </div>
+        <div id="viso-signin">
+          <div class="form-group">
+            <label class="form-label" for="viso-url-input">Your Viso URL:</label>
+            <input type="text" id="viso-url-input" class="form-input" placeholder="http://127.0.0.1:7509/v1/contract/web/…/" />
+          </div>
+          <div class="modal-actions" style="justify-content: stretch;">
+            <button type="button" class="btn-primary" id="viso-signin-btn" style="width: 100%;">Sign in with Viso</button>
+          </div>
+        </div>
+        <div id="viso-tree" style="display: none;">
+          <div class="form-group"><span class="form-label">Signed in as <code id="viso-who"></code></span></div>
+          <div class="form-group">
+            <label class="form-label" for="tree-name-input">Name:</label>
+            <input type="text" id="tree-name-input" class="form-input" maxlength="64" placeholder="My Linktree" />
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="tree-bio-input">Bio:</label>
+            <input type="text" id="tree-bio-input" class="form-input" maxlength="280" placeholder="Short description" />
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="tree-md-input">Links (Markdown, like Delta):</label>
+            <textarea id="tree-md-input" class="form-textarea" placeholder="## Section&#10;* [Link Name](https://...) - Description"></textarea>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Add a link:</label>
+            <div style="display: flex; gap: 6px;">
+              <input type="text" id="tree-add-title" class="form-input" placeholder="Title" />
+              <input type="text" id="tree-add-url" class="form-input" placeholder="https://…" />
+              <button type="button" class="btn-secondary" id="tree-add-btn">Add</button>
+            </div>
+          </div>
+          <ul id="tree-link-list" style="list-style: none; padding: 0; margin: 0 0 8px;"></ul>
+          <div class="modal-actions" style="justify-content: space-between;">
+            <button type="button" class="btn-secondary" id="tree-delete-btn">Delete tree</button>
+            <span>
+              <button type="button" class="btn-secondary" id="viso-signout-btn">Sign out</button>
+              <button type="button" class="btn-primary" id="tree-save-btn">Save &amp; show</button>
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- Floating Toast Notification -->
     <div class="toast" id="toast" role="status" aria-live="polite">
       <svg viewBox="0 0 24 24" style="width: 16px; height: 16px; fill: currentColor;" aria-hidden="true">
@@ -317,6 +370,8 @@
     <script src="js/delta-bridge.bundle.js"></script>
     <!-- Main Script (Classic Bundle — zero CORS requirement in sandbox iframe) -->
     <script src="js/bundle.js"></script>
+    <!-- Sign in with Viso + personal tree CRUD -->
+    <script src="js/viso.js"></script>
   </body>
 </html>
 
