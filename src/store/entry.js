@@ -6,6 +6,9 @@ import { hex, unhex } from './seal.js';
 
 const enc = new TextEncoder();
 
+/** The public key of an app secret (hex): what Viso names in the `wd1.<app key>.<nonce>` challenge. */
+export const appPubHex = (secretHex) => hex(ed25519.getPublicKey(unhex(secretHex)));
+
 /** Log name of one persona's tree. */
 export const treeLog = (personaHex) => `freetree/${personaHex}`;
 /** Entry id: one per persona, a newer entry (by ts) replaces the older. */

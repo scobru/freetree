@@ -283,6 +283,7 @@
               <button type="button" class="btn-secondary" id="tree-add-btn">Add</button>
             </div>
           </div>
+          <div class="form-label" id="tree-status" role="status" style="margin: 0 0 8px;"></div>
           <ul id="tree-link-list" style="list-style: none; padding: 0; margin: 0 0 8px;"></ul>
           <div class="modal-actions" style="justify-content: space-between;">
             <button type="button" class="btn-secondary" id="tree-delete-btn">Delete tree</button>
@@ -306,6 +307,8 @@
     <!-- Main Script (Classic Bundle — zero CORS requirement in sandbox iframe) -->
     <script src="js/bundle.js"></script>
     <!-- Sign in with Viso + personal tree CRUD -->
+    <!-- Freenet side: contract client + node delegate (built from src/store, see scripts/build.mjs) -->
+    <script src="js/store.bundle.js"></script>
     <script src="js/viso.js"></script>
   </body>
 </html>

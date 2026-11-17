@@ -5,8 +5,11 @@
  * Connect flow: bounce to the user's Viso with ?connect=v1&challenge&return,
  * Viso returns ?viso=ok&pk&sig&challenge&ts. We verify the Ed25519 signature
  * over: "whoiam-connect-v1" | pk | u32le|base| u32le|challenge | u64le ts.
- * The tree lives in localStorage keyed by the proven pubkey (when the sandbox
- * allows it); "Export" always yields a portable #data= link.
+ * Signed in with Viso's key=v1 (js/store.bundle.js loaded), the tree is also kept
+ * in a Freenet contract: the app key Viso hands back (sealed, #esk=) signs it, the
+ * persona's delegation certificate vouches for that key. Without the bundle, a
+ * node, or a delegate to hold the key, everything falls back to the page link:
+ * "Export" always yields a portable #data= link.
  */
 (function () {
   'use strict';
@@ -22,6 +25,25 @@
     set(k, v) { try { window.localStorage.setItem(k, v); return true; } catch { return false; } },
     del(k) { try { window.localStorage.removeItem(k); } catch {} }
   };
+
+  // Viso appends `#esk=<viso epk>.<ciphertext>` to the return URL, or `&esk=…` to a carried #data=/#z= hash.
+  // Take it out now, before the app (bundle.js) reads the hash: its #data= decoder would choke on it.
+  let handedEsk = null;
+  (function takeEsk() {
+    const h = window.location.hash;
+    const m = /(?:^#|&)esk=([0-9a-f]{64}\.[0-9a-f]{96})$/i.exec(h);
+    if (!m) return;
+    handedEsk = m[1];
+    const rest = h.slice(0, m.index);
+    try { history.replaceState(null, '', rest && rest !== '#' ? rest : window.location.pathname + window.location.search); } catch {}
+  })();
+
+  // The Freenet side (js/store.bundle.js). `window.__freetreeNet` replaces its network and delegate calls in tests.
+  const net = () => (window.FreetreeStore ? Object.assign({}, window.FreetreeStore, window.__freetreeNet) : null);
+
+  // Small private values the node keeps for this app (its delegate), else page storage. Keys: [A-Za-z0-9:-].
+  async function kvGet(k) { return ((await net()?.nodeGet(k).catch(() => null)) || store.get(`freetree_${k}`)) || null; }
+  async function kvPut(k, v) { return !!(await net()?.nodePut(k, v).catch(() => false)) || store.set(`freetree_${k}`, v); }
 
   const hex = (u8) => Array.from(u8, (b) => b.toString(16).padStart(2, '0')).join('');
   const unhex = (h) => {
@@ -50,6 +72,16 @@
     return out;
   }
 
+  // The app's path on the node ("…/<key>/"): the contract parameters and the delegation certificate carry it.
+  const appPath = () => {
+    const m = /^\/v[12]\/contract\/web\/[^/]+/.exec(window.location.pathname);
+    return m ? `${m[0]}/` : window.location.pathname;
+  };
+  // What we ask Viso to sign for: the same app on any node host, so the certificate does not show this one.
+  const canonicalBase = () => `http://127.0.0.1:7509${appPath()}`;
+
+  // Check Viso's answer: the persona signed (base, challenge, ts). That signature is also the certificate that
+  // delegates the app key. Classic sign-in: a one-time challenge we issued. key=v1: `wd1.<app key>.<our epk>`.
   async function verifyCallback(params) {
     const pk = unhex(params.get('pk') || '');
     const sig = unhex(params.get('sig') || '');
@@ -59,9 +91,12 @@
       throw new Error('malformed Viso callback');
     }
     if (Math.abs(Date.now() - ts) > PROOF_MAX_AGE_MS) throw new Error('stale proof, sign in again');
-    // One-time challenge; if storage is blocked we can only rely on the fresh ts.
-    const expected = store.get('freetree_challenge');
-    if (expected !== null && expected !== challenge) throw new Error('unknown challenge');
+    const keyed = challenge.startsWith('wd1.');
+    if (!keyed) {
+      // One-time challenge; if storage is blocked we can only rely on the fresh ts.
+      const expected = store.get('freetree_challenge');
+      if (expected !== null && expected !== challenge) throw new Error('unknown challenge');
+    }
     if (!crypto?.subtle) throw new Error('WebCrypto unavailable (needs a secure context)');
     let key;
     try {
@@ -69,10 +104,118 @@
     } catch {
       throw new Error('this browser lacks Ed25519 in WebCrypto');
     }
-    const ok = await crypto.subtle.verify({ name: 'Ed25519' }, key, sig, connectMessage(pk, ownBase(), challenge, ts));
-    if (!ok) throw new Error('signature does not verify');
-    store.del('freetree_challenge');
-    return hex(pk);
+    let base = null;
+    for (const b of new Set([canonicalBase(), ownBase()])) {
+      if (await crypto.subtle.verify({ name: 'Ed25519' }, key, sig, connectMessage(pk, b, challenge, ts))) { base = b; break; }
+    }
+    if (!base) throw new Error('signature does not verify');
+    if (!keyed) store.del('freetree_challenge');
+    return { persona: hex(pk), cert: { base, challenge, ts, sig: hex(sig) } };
+  }
+
+  // ---- the tree in a Freenet contract (needs the bundle, a node, and the app key from a key=v1 sign-in) ----
+  let session = null; // { appSecret, cert }: set only when Viso handed the app key over
+
+  async function finishSignin(params) {
+    const proof = await verifyCallback(params);
+    session = null;
+    const n = net();
+    if (proof.cert.challenge.startsWith('wd1.')) {
+      const priv = await kvGet('ft:epk');
+      if (n && handedEsk && priv) {
+        try {
+          const secret = await n.openEsk(handedEsk, priv, proof.cert.challenge);
+          const appKey = proof.cert.challenge.split('.')[1];
+          if (n.appPubHex(secret) !== appKey) throw new Error('the key Viso handed over does not match its signature');
+          n.checkCert(proof.persona, appPath(), appKey, proof.cert);
+          session = { appSecret: secret, cert: proof.cert };
+          await kvPut('ft:session', JSON.stringify({ persona: proof.persona, ...session }));
+        } catch (e) {
+          toast(`Freenet key: ${e.message}`);
+        }
+      }
+      handedEsk = null;
+      await kvPut('ft:epk', ''); // single use
+    }
+    return proof.persona;
+  }
+
+  // A sign-in from an earlier visit, kept by the node's delegate: the certificate is checked again, nothing is trusted.
+  async function restoreSession() {
+    const n = net();
+    if (!n) return false;
+    try {
+      const j = JSON.parse((await kvGet('ft:session')) || 'null');
+      if (!j || !/^[0-9a-f]{64}$/.test(j.persona) || !/^[0-9a-f]{64}$/.test(j.appSecret)) return false;
+      n.checkCert(j.persona, appPath(), n.appPubHex(j.appSecret), j.cert);
+      pk = j.persona;
+      session = { appSecret: j.appSecret, cert: j.cert };
+      return true;
+    } catch { return false; }
+  }
+
+  const isEmpty = (t) => !t || (!String(t.md || '').trim() && !String(t.name || '').trim());
+  const sameTree = (a, b) => a.name === b.name && a.bio === b.bio && a.md === b.md;
+
+  function setStatus(kind) {
+    const el = $('tree-status');
+    if (!el) return;
+    el.textContent = !session ? '' : { saving: 'Saving on Freenet…', saved: '✓ Saved on Freenet', link: 'Only in this page link: the Freenet node did not answer', none: 'Not saved on Freenet yet' }[kind] || '';
+  }
+
+  /** Sign the tree with the app key and send it to the contract. False when it could not (no node, refused…). */
+  async function pushTree(t) {
+    const n = net();
+    if (!n || !pk || !session) return false;
+    try {
+      const e = n.signTree({ appSecretHex: session.appSecret, personaHex: pk, cert: session.cert, appPath: appPath(), tree: t });
+      await n.pushEntries(pk, { [`${e.author}:${e.id}`]: e });
+      return true;
+    } catch (e) {
+      console.warn('[freetree] could not save to Freenet:', e);
+      return false;
+    }
+  }
+
+  /** The persona's newest valid tree in the contract, or null (none, no node, anything forged is skipped). */
+  async function pullTree() {
+    const n = net();
+    if (!n || !pk || !session) return null;
+    try {
+      const entries = await n.getEntries(pk);
+      const t = entries ? n.pickTree(entries, pk, appPath()) : null;
+      return isEmpty(t) ? null : t;
+    } catch (e) {
+      console.warn('[freetree] could not read from Freenet:', e);
+      return null;
+    }
+  }
+
+  // After signing in: the contract's tree shows if nothing else is on screen; what is on screen (an opened link)
+  // is never replaced, and is saved if the contract has nothing yet.
+  async function syncFromContract() {
+    if (!session) return;
+    setStatus('saving');
+    const remote = await pullTree();
+    const shown = shownOwnTree();
+    if (remote) memTree = remote; // the editor opens on it
+    if (remote && !window.freetree?.siteData) {
+      show(remote);
+      syncHash(false);
+      toast('Your tree, loaded from Freenet');
+      return setStatus('saved');
+    }
+    if (remote && shown && !sameTree(remote, shown)) {
+      toast('Your saved tree differs from this link: showing the link. Save to replace the saved one');
+      return setStatus('saved');
+    }
+    if (remote) return setStatus('saved');
+    if (shown && !isEmpty(shown)) {
+      const ok = await pushTree(shown);
+      if (ok) toast('Saved on Freenet');
+      return setStatus(ok ? 'saved' : 'link');
+    }
+    setStatus('none');
   }
 
   // ---- tree CRUD (create/update = save, read = show, delete) ----
@@ -198,7 +341,12 @@
     close();
     show(t);
     syncHash(false);
-    toast(persisted ? 'Saved' : 'Saved in this page link: use Export to keep it');
+    if (!session) return toast(persisted ? 'Saved' : 'Saved in this page link: use Export to keep it');
+    setStatus('saving');
+    pushTree(t).then((ok) => {
+      setStatus(ok ? 'saved' : 'link');
+      toast(ok ? 'Saved on Freenet' : 'Saved in this page link only: the Freenet node did not answer');
+    });
   }
 
   function remove() {
@@ -209,6 +357,8 @@
     syncHash(true);
     refreshModal();
     toast('Tree deleted');
+    // a contract entry cannot be removed: replace it with an empty tree, which reads as none
+    if (session) pushTree({ name: '', bio: '', md: '' }).then((ok) => setStatus(ok ? 'none' : 'link'));
   }
 
   // ---- classic entry: create or import, no account ----
@@ -300,11 +450,21 @@
     let u;
     try { u = new URL(viso); } catch { return toast('Enter your Viso URL'); }
     if (!/^https?:$/.test(u.protocol)) return toast('Viso URL must be http(s)');
-    const nonce = crypto.getRandomValues(new Uint8Array(16));
-    const challenge = hex(nonce);
-    store.set('freetree_challenge', challenge);
     store.set('freetree_viso_url', viso);
-    const url = `${viso}${viso.includes('?') ? '&' : '?'}connect=v1&challenge=${challenge}&return=${encodeURIComponent(ownBase() + await carryHash())}`;
+    const back = encodeURIComponent(ownBase() + await carryHash());
+    const sep = viso.includes('?') ? '&' : '?';
+    let url;
+    // key=v1: Viso derives this app's key and hands it back sealed to a one-time key (epk) that waits in the node's
+    // delegate meanwhile. No store, or nowhere to keep that key: the classic sign-in (the tree stays in the link).
+    const n = net();
+    const epk = n ? n.newEpk() : null;
+    if (epk && await kvPut('ft:epk', epk.priv)) {
+      url = `${viso}${sep}connect=v1&challenge=${epk.pub}&return=${back}&base=${encodeURIComponent(canonicalBase())}&key=v1&epk=${epk.pub}`;
+    } else {
+      const challenge = hex(crypto.getRandomValues(new Uint8Array(16)));
+      store.set('freetree_challenge', challenge);
+      url = `${viso}${sep}connect=v1&challenge=${challenge}&return=${back}`;
+    }
     // Sandboxed iframe can't top-navigate; a new tab can.
     if (!window.open(url, '_blank')) toast('Popup blocked: allow popups and retry');
   }
@@ -326,33 +486,39 @@
     $('tree-save-btn').addEventListener('click', save);
     $('tree-delete-btn').addEventListener('click', remove);
     $('viso-signout-btn').addEventListener('click', () => {
-      pk = null; memTree = null; store.del('freetree_session_pk'); refreshModal();
+      pk = null; memTree = null; session = null; store.del('freetree_session_pk');
+      kvPut('ft:session', '');
+      refreshModal();
     });
 
     const params = new URLSearchParams(window.location.search);
     const status = params.get('viso');
     try {
       if (status === 'ok') {
-        pk = await verifyCallback(params);
+        pk = await finishSignin(params);
         store.set('freetree_session_pk', pk);
         toast('Signed in with Viso');
       } else if (status === 'denied') {
         toast('Viso sign-in declined');
       } else {
-        // Remembered session (unverified re-use of a previously verified key).
-        const saved = store.get('freetree_session_pk');
-        if (saved && /^[0-9a-f]{64}$/.test(saved)) pk = saved;
+        // A sign-in kept by the node's delegate (certificate re-checked), else the remembered key of an earlier one.
+        if (!(await restoreSession())) {
+          const saved = store.get('freetree_session_pk');
+          if (saved && /^[0-9a-f]{64}$/.test(saved)) pk = saved;
+        }
       }
     } catch (e) {
       toast(`Viso: ${e.message}`);
     }
     refreshModal();
+    if (session) await syncFromContract();
+    refreshModal();
     if (status === 'ok' && pk) {
       if (shownOwnTree()) {
         toast('Signed in. Tap your Viso button to edit this tree');
-      } else {
+      } else if (!window.freetree?.siteData) {
         const t = loadTree(pk);
-        if (t) show(t); else { open(); }
+        if (t) show(t); else if (!session || !memTree) { open(); }
       }
     }
   }
