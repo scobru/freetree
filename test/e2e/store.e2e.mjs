@@ -65,7 +65,7 @@ await p.goto('about:blank');
 await p.goto(await visoReply({ personaSk, appSecret, epk, hashTail: ownHash }));
 await p.waitForTimeout(900);
 ok((await p.textContent('#viso-btn')).includes(short.slice(0, 8)), 'signed in as the persona');
-ok(!(await p.evaluate(() => location.hash)).includes('esk') && (await p.evaluate(() => location.hash)).startsWith('#data='), 'esk removed from the URL, tree hash intact');
+ok((await p.evaluate(() => location.hash)) === '#u=' + personaHex, 'esk removed from the URL, and once saved the address is the short link');
 ok((await pills(p)) === 2, 'the carried tree is shown');
 const log1 = await fake(p, 'log:' + personaHex);
 ok(log1 && log1[`${personaHex}:tree`], 'tree migrated to the contract (nothing there yet)');
@@ -79,7 +79,7 @@ ok((await p.textContent('#tree-status')).includes('Saved on Freenet'), 'status s
 // 3) a fresh visit, no link at all: the tree comes from the contract
 await p.goto('about:blank'); await p.goto(BASE); await p.waitForTimeout(900);
 ok((await pills(p)) === 2 && (await p.textContent('#profile-handle')).toLowerCase().includes('scobru'), 'fresh visit loads the saved tree from the contract');
-ok((await p.evaluate(() => location.hash)).startsWith('#data='), 'the loaded tree is in the link too');
+ok((await p.evaluate(() => location.hash)) === '#u=' + personaHex, 'a fresh visit: the address is the short link');
 
 // 4) edit + save -> contract updated
 await p.click('#edit-tree-btn');
@@ -90,6 +90,36 @@ const log2 = await fake(p, 'log:' + personaHex);
 ok((await pills(p)) === 3 && log2[`${personaHex}:tree`].ts >= log1[`${personaHex}:tree`].ts && JSON.parse(log2[`${personaHex}:tree`].body).md.includes('three.example'), 'save updates the contract entry');
 await p.goto('about:blank'); await p.goto(BASE); await p.waitForTimeout(900);
 ok((await pills(p)) === 3, 'next visit shows the edited tree');
+
+// 4b) the share link is short (just the persona's key), and anyone can open it
+await p.click('#share-profile-btn');
+const shareUrl = await p.inputValue('#export-url-input');
+ok(shareUrl.endsWith('#u=' + personaHex) && shareUrl.length < 200, `share link is short (${shareUrl.length} chars) and carries only the key`);
+await p.click('#export-modal-close-btn');
+const toastText = (pg) => pg.textContent('#toast-text');
+const asVisitor = async (hash) => {          // a different person: no session in the delegate
+  const v = await ctx.newPage(); v.on('pageerror', (e) => errs.push(e.message));
+  await v.goto('about:blank'); await v.goto(BASE);
+  await setFake(v, 'kv:ft:session', '');
+  await v.evaluate(() => localStorage.removeItem('freetree_session_pk')); // not remembered as the owner either
+  await v.goto('about:blank'); await v.goto(BASE + hash); await v.waitForTimeout(900);
+  return v;
+};
+let v = await asVisitor('#u=' + personaHex);
+ok((await pills(v)) === 3 && (await v.textContent('#viso-btn')) === 'Viso', 'a visitor reads the tree from the contract without signing in');
+await v.click('#edit-tree-btn');
+ok((await toastText(v)).includes('Not your tree'), 'a visitor editing it only makes their own copy');
+await v.evaluate(() => document.getElementById('viso-modal-backdrop').classList.remove('is-open'));
+await v.click('#share-profile-btn');
+ok((await v.inputValue('#export-url-input')).endsWith('#u=' + personaHex), "the visitor's Export of that tree is still the short link");
+await v.close();
+await setFake(p, 'down', true);
+v = await asVisitor('#u=' + personaHex);
+ok((await v.locator('#empty-create-btn').count()) === 1 && (await toastText(v)).includes('Could not reach Freenet'), 'node down: the visitor sees the empty state and why');
+await v.close(); await setFake(p, 'down', false);
+v = await asVisitor('#u=' + hex(crypto.getRandomValues(new Uint8Array(32))));
+ok((await v.locator('#empty-create-btn').count()) === 1 && (await toastText(v)).includes('No tree found'), 'a persona with no tree: said so');
+await v.close();
 
 // 5) node down: saved in the link only, said so
 await setFake(p, 'down', true);

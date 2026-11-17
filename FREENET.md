@@ -78,5 +78,9 @@ With a `key=v1` sign-in the tree is stored in a Freenet contract instead of only
   sandboxed page has no storage.
 - **Read** at load: the persona's newest valid entry; anything not signed by a delegated key, or with a bad
   certificate, is skipped. What is on screen (an opened link) is never replaced; it is saved if the contract has none.
+- **Share link**: once the tree is in the contract, the page address and `Export` are `#u=<persona key, 64 hex>`
+  (the key alone: ~150 characters with the app path). Opening it reads the persona's log (no sign-in; the entry's
+  signature and delegation are checked) and shows the tree; a visitor editing it makes their own copy. A tree that
+  could not be saved to the contract keeps the long `#data=` link.
 - **Fallback**: no bundle, no node, no delegate or no app key from Viso: the classic sign-in and the `#data=` link.
 - Build: `npm run build` bundles `src/store` into `js/store.bundle.js` (committed: publishing has no build step).

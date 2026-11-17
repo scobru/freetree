@@ -715,6 +715,12 @@
           return;
         }
       }
+      // A tree kept in a Freenet contract: #u=<persona key>. viso.js loads it (at start, or from here on a hashchange).
+      if (/^u=[0-9a-f]{64}$/i.test(rawHash)) {
+        if (this.el.linksList) this.el.linksList.innerHTML = '<div class="empty-state"><p>Loading from Freenet…</p></div>';
+        window.freetreeTree?.openUser?.(rawHash.slice(2).toLowerCase());
+        return;
+      }
       this.loadEmptyState();
     }
 
@@ -838,6 +844,9 @@
         pathname = '/v1/contract/web/4SC5QCzLzKWH9BSFFybivTynfBRkPw3PtXwegjXbPm8x/';
       }
 
+      // saved on Freenet: the link is just the persona's key, whoever opens it reads the tree from the contract
+      const user = window.freetreeTree?.shareHash?.();
+      if (user) return `${origin}${pathname}#${user}`;
       return `${origin}${pathname}#${encodeCustomData(this.siteData, this.activePageTitle)}`;
     }
 
